@@ -1,0 +1,38 @@
+@import ".global.less";
+
+#menuChannel {
+	.box-shadow(0 -0.125em 0.25em rgba(34, 36, 38, 0.2));
+	z-index: 1001;
+	border-width: 0 !important;
+	> .item {
+		min-width: 4em !important;
+		display: block !important;
+		padding-top: 0.5em !important;
+		padding-bottom: 0.5em !important;
+		margin-bottom: 0 !important;
+		> .icon {
+			font-size: 160% !important;
+			font-weight: lighter;
+			margin: 0em auto 0.1em !important;
+		}
+		> span {
+			font-size: 75% !important;
+			font-weight: lighter;
+		}
+
+		&:not(.active) {
+			color: @menuFontColor !important;
+		}
+	}
+}
+
+#cardBookChannel {
+	height: 100%;
+	> div {
+		height: 100%;
+	}
+}
+
+.ui.circular.label.badge {
+	margin-left: 0;
+}

@@ -1,0 +1,22 @@
+CACHE MANIFEST
+
+# InnerVersion 0
+
+CACHE:
+
+resources/cola-ui/themes/default/assets/fonts/icons.ttf
+
+resources/cola-ui/semantic.css
+resources/cola-ui/cola.css
+resources/cola-ui/3rd.js
+resources/cola-ui/semantic.js
+resources/cola-ui/cola.js
+
+resources/jquery-2.1.3.js
+resources/jquery.cookie.js
+resources/jquery.parsequery.js
+
+resources/font/OpenSans-Regular.ttf
+
+NETWORK:
+*

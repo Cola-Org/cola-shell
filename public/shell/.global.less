@@ -1,0 +1,56 @@
+@import "../resources/.est/all.less";
+
+@fontColor: rgba(0, 0, 0, 0.87);
+@linkFontColor: #4183c4;
+@menuFontColor: #808080;
+@descriptionFontColor: #808080;
+@secondaryDescriptionFontColor: #909090;
+@tertiaryDescriptionFontColor: #ababab;
+@dividerBorderColor: #e0e0e0;
+@lightDividerBorderColor: #ededed;
+@activeBackgroundColor: #ededed;
+
+@primaryColor: #fc6e51;
+@lightPrimaryColor: #fc8465;
+@darkPrimaryColor: #e9573f;
+@priceColor: @darkPrimaryColor;
+@disabledPriceColor: @descriptionFontColor;
+
+@title-bar-height: 38px;
+
+.back-button() {
+	margin-left: 0.8em;
+	margin-top: 0.6em;
+	border-radius: 50%;
+	background-color: rgba(255, 255, 255, 0.75) !important;
+	.box-shadow(rgba(34, 36, 38, 0.14902) 0px 0px 0px 1px inset);
+	z-index: 100;
+	&:active {
+		background: @activeBackgroundColor;
+	}
+}
+
+.sub-view-title() {
+	display: inline-block;
+	vertical-align: middle;
+	margin: 0 0.5em;
+	font-size: 120%;
+	font-weight: bold;
+}
+
+.item-corner() {
+	border-color: rgba(33, 133, 208, 0.75) !important;
+	color: #fff !important;
+	> .text {
+		margin-left: -1em;
+		margin-top: 1em;
+		font-size: 90%;
+		font-weight: normal;
+		-webkit-transform: rotate(-45deg);
+		transform: rotate(-45deg);
+	}
+}
+
+.band-shadow() {
+	.box-shadow(0 1px 1px 0 rgba(34, 36, 38, 0.1));
+}
