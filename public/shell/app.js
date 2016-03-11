@@ -211,12 +211,10 @@
 		});
 	});
 
-	var language = App.prop("language");
+	var language = $.cookie("_language") || window.navigator.language;
 	if (language) {
-		if (language != "zh-Hans") {
-			document.write('<script src="../resources/i18n/zh-Hans/common.js"></script>');
-		}
-		document.write('<script src="resources/i18n/' + language + '/common.js"></script>');
+		document.write("<script src=\"resources/cola-ui/i18n/" + language + "/cola.js\"></script>");
+		document.write("<script src=\"resources/i18n/" + language + "/common.js\"></script>");
 	}
 
 	window.boardcastMessage = function (message) {

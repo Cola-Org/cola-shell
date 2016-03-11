@@ -4,10 +4,7 @@ App.prop({
 	// 开发状态下的默认值，在Build时此段内容将被替换
 	appTitle: "Cola-Shell",
 	liveMessage: false,
-	language: "zh-Hans",
-	domainRegExp: /^https*:\/\/shop\.cola-ui\.com\//,
-	captchaUrl: "service/account/captcha",
-	currency: "￥"
+	domainRegExp: /^https*:\/\/shop\.cola-shell\.com\//
 	// REPLACE_END
 });
 
