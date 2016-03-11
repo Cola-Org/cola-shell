@@ -1,0 +1,26 @@
+form#containerSignIn(c-widget="segment; class:basic" c-onsubmit="signIn()")
+	.ui.form#formSignIn(c-widget="form" style="padding:4em 1em 2em 1em")
+		.field
+			h2.ui.header(c-bind="=resource('signIn')" style="display:inline")
+			.ui.message.error
+		.field
+			div(c-widget="input; bind:account; placeholder:{{=resource('account')}}; postOnInput:true")
+		.field
+			div(c-widget="input; bind:password; placeholder:{{=resource('password')}}; inputType:password; postOnInput:true")
+		.field(style="text-align:right")
+			a.state(c-bind="=resource('signIn.forgot')" href="forgot-password1")
+		.field
+			#buttonSignIn
+		//.ui.horizontal.divider(c-bind="=resource('signIn.with')" style="text-transform:none")
+		//.field(style="text-align:center")
+		//	a(href="http://paypal.com" target="sign-in-width" c-widget="button; class:paypal circular big blue; icon:paypal", style="color:white")
+		//	a(href="http://facebook.com" target="sign-in-width" c-widget="button; class:facebook circular big; icon:facebook")
+		//	a(href="http://twitter.com" target="sign-in-width" c-widget="button; class:twitter circular big; icon:twitter")
+		//	a(href="http://google.com" target="sign-in-width" c-widget="button; class:google plus circular big; icon:google plus")
+		//	a(href="http://vk.com" target="sign-in-width" c-widget="button; class:vk circular big; icon:vk")
+		.ui.horizontal.divider(c-bind="=resource('signIn.noAccount')" style="text-transform:none")
+		.field
+			#buttonRegister
+
+	.ui.inverted.dimmer
+		.ui.text.loader

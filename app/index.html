@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="misapplication-tap-highlight" content="no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<title>Cola Shop</title>
+
+	<script type="text/javascript" charset="utf-8">
+		(function () {
+			var url = "http://192.168.42.113:5000";
+
+			function netChange() {
+				var info = getNetworkInfo();
+				if (!info.connected) {
+					plus.nativeUI.toast(info.message, {duration: "long"});
+				}
+			}
+
+			function getNetworkInfo() {
+				var networkInfo = plus.networkinfo,
+						result = {
+							connected: true,
+							message: "网络可用"
+						};
+				var currentType = networkInfo.getCurrentType();
+				if (currentType == networkInfo.CONNECTION_UNKNOW) {
+					result.connected = false;
+					result.message = "网络未知，请检查手机网络！"
+				} else if (currentType == networkInfo.CONNECTION_NONE) {
+					result.connected = false;
+					result.message = "未连接网络，请检查手机网络！"
+				}
+
+				return result
+			}
+
+			function plusReady() {
+				var netInfo = getNetworkInfo();
+				netChange();
+				var viewPath = url;
+				//在ios 7.0.* 版本下使用application cache触发history.back error
+				if (plus.os.name == "iOS") {
+					var versions = plus.os.version.split(".");
+					if (parseInt(versions[0]) == 7 && parseInt(versions[1]) < 1) {
+						viewPath += "/ios7-index.html"
+					}
+				}
+
+				if (!netInfo.connected) {
+					viewPath = "file://" + plus.io.convertLocalFileSystemURL("/error.html") + "?" + encodeURIComponent(url);
+				}
+				var newWebView = plus.webview.create(viewPath);
+
+				function webViewReady() {
+					setTimeout(function () {
+						newWebView.show();
+						plus.navigator.closeSplashscreen();
+					}, 500)
+				}
+
+				newWebView.addEventListener("loaded", webViewReady, false);
+				newWebView.onerror = function (error) {
+					var errorPage = "file://" + plus.io.convertLocalFileSystemURL("/error.html");
+					webview.loadURL(errorPage + "?" + encodeURIComponent(url));
+					webViewReady();
+					return false;
+				};
+
+				document.addEventListener("netchange", netChange, false);
+			}
+
+			if (window.plus) {
+				plusReady();
+			} else {
+				document.addEventListener("plusready", plusReady, false);
+			}
+		})();
+	</script>
+</head>
+<body>
+
+</body>
+</html>

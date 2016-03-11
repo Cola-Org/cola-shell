@@ -1,0 +1,27 @@
+#formRegister(c-widget="segment; class:basic" style="padding-bottom:13em")
+    .ui.form(c-widget="form" style="padding:4em 1em 2em 1em")
+        h2.ui.header(c-bind="=resource('register')")
+        .field
+            div(c-widget="input; bind:email; placeholder:{{=resource('email')}}")
+        .field
+            div(c-widget="input; bind:nickname; placeholder:{{=resource('register.nickname')}}")
+        .field
+            div(c-widget="input; bind:password; placeholder:{{=resource('password')}}; inputType:password")
+        .field
+            div(c-widget="input; bind:password2; placeholder:{{=resource('register.confirmPassword')}}; inputType:password")
+        div(style="margin-top:2em")
+            div.basic.captcha-container(c-widget="segment; click:resetCaptcha")
+                img#captcha
+            span.captcha-help(c-bind="=resource('register.captchaDesc')")
+        .field(style="margin-bottom:2em")
+            div(c-widget="input; bind:captcha; placeholder:{{=resource('register.captcha')}}")
+        .field
+            div(c-widget="checkbox; bind:newsLetter" style="float:left")
+            label.rec-email(c-bind="=resource('register.newsLetter')")
+        .field
+            div(c-widget="checkbox; bind:agree" style="float:left")
+            a.agreement.state(href="agreement" c-bind="=resource('register.agreement')")
+        div
+            #buttonSubmit
+    .ui.inverted.dimmer
+        .ui.text.loader

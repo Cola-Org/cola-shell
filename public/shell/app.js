@@ -23,10 +23,12 @@
 			domainRegExp: null,
 			contextPath: "/",
 			servicePrefix: "/",
+			defaultRouterPath: "/home",
+			signInPath: "/login",
+			mainView: "shell/main-channel-bottom",
 			htmlSuffix: "",
 			longPollingTimeout: 0,
 			longPollingInterval: 2000,
-			language: "zh-Hans",
 			safeEffect: false && cola.os.android && !cola.browser.chrome
 		};
 
@@ -38,6 +40,8 @@
 	}
 
 	var App = window.App = {
+		channels: [],
+
 		prop: function (key, value) {
 			if (rootApp) {
 				return rootApp.prop.apply(rootApp, arguments);
@@ -75,6 +79,11 @@
 				if (!this._prependingRouters) this._prependingRouters = [];
 				this._prependingRouters.push(config);
 			}
+		},
+
+		channel: function(config) {
+			config.level = 0;
+			this.router(config);
 		},
 
 		openPath: function (path, target, callback, replace) {
@@ -133,7 +142,7 @@
 					nextPath = null;
 				}
 
-				var path = "/sign-in", realNextPath = nextPath || cola.getCurrentRoutePath();
+				var path = App.prop("signInPath"), realNextPath = nextPath || cola.getCurrentRoutePath();
 
 				if (realNextPath) path += "?" + encodeURIComponent(realNextPath);
 				this.openPath(path, undefined, callback, replace);
@@ -157,51 +166,7 @@
 				rootApp.boardcastMessage(message);
 			}
 			else {
-				boardcastAppMessage(message);
-			}
-		},
-
-		authStateChange: function (authState) {
-			if (rootApp) {
-				rootApp.authStateChange(authState);
-			}
-			else {
-				var oldAuthenticated = this.prop("authenticated");
-				if (oldAuthenticated != authState.authenticated) {
-					this.prop("authenticated", authState.authenticated);
-					this.prop("authInfo", (authState.authenticated) ? authState.authInfo : null);
-
-					this.boardcastMessage({
-						type: "authStateChange",
-						data: {authenticated: authState.authenticated}
-					});
-				}
-			}
-		},
-
-		setUnreadAdviceCount: function (count) {
-			if (rootApp) {
-				rootApp.setUnreadAdviceCount(count);
-			}
-			else {
-				this.prop("unreadAdviceCount", count);
-				this.boardcastMessage({
-					type: "unreadAdviceCountChange",
-					data: {count: count}
-				});
-			}
-		},
-
-		setCartItemCount: function (count) {
-			if (rootApp) {
-				rootApp.setCartItemCount(count);
-			}
-			else {
-				this.prop("cartItemCount", count);
-				this.boardcastMessage({
-					type: "cartItemChange",
-					data: {count: count}
-				});
+				boardcastMessage(message);
 			}
 		}
 	};
@@ -223,7 +188,6 @@
 		var url = options.url;
 		if (servicePrefix && url.match(/^\/?service\/[a-z]+/)) {
 			options.url = cola.util.concatUrl(servicePrefix, url);
-			console.log(options.url);
 			options.crossDomain = true;
 		}
 		//options.contentType = "text/plain";
@@ -231,6 +195,9 @@
 
 	cola.defaultAction("setting", function(key) {
 		return App.prop(key);
+	});
+	cola.defaultAction("numberString", function(number) {
+		return ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"][number - 1];
 	});
 
 	$(function () {
@@ -244,13 +211,6 @@
 		});
 	});
 
-	$(window).on("message", function (evt) {
-		var data = evt.originalEvent.data;
-		if (data) {
-			$(window).trigger(data.type, data.data);
-		}
-	});
-
 	var language = App.prop("language");
 	if (language) {
 		if (language != "zh-Hans") {
@@ -259,13 +219,13 @@
 		document.write('<script src="resources/i18n/' + language + '/common.js"></script>');
 	}
 
-	window.boardcastAppMessage = function (message) {
-		postMessage(message, "*");
+	window.boardcastMessage = function (message) {
+		$(window).trigger(message.type, message.data);
 		$("iframe").each(function () {
 			try {
 				var win = this.contentWindow;
-				if (win.boardcastAppMessage) {
-					win.boardcastAppMessage(message);
+				if (win.boardcastMessage) {
+					win.boardcastMessage(message);
 				}
 			}
 			catch (e) {

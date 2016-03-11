@@ -12,18 +12,18 @@
 		> .v-box > .title-bar {
 			background: @primaryColor !important;
 			color: #fff !important;
-			height: 38px;
+			height: @title-bar-height;
 			vertical-align: top;
 			> .back-button {
 				float: left;
 				color: #fff;
 				background: transparent;
 				width: 3em;
-				line-height: 38px;
+				line-height: @title-bar-height;
 				padding: 0 !important;
 			}
 			> .title {
-				line-height: 38px;
+				line-height: @title-bar-height;
 				color: #fff;
 				font-size: 110%;
 				text-align: left;
@@ -33,7 +33,7 @@
 			position: absolute;
 			left: 0;
 			right: 0;
-			top: 38px;
+			top: @title-bar-height;
 			bottom: 0;
 		}
 	}

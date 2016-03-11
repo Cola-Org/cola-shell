@@ -14,12 +14,12 @@
 	}
 
 	cola.setting("routerMode", "state");
-	cola.setting("defaultRouterPath", defaultPath || "/home");
+	cola.setting("defaultRouterPath", defaultPath || App.prop("defaultRouterPath"));
 	cola.setting("routerContextPath", contextPath);
 
-	var appTitle = cola.resource("appTitle");
+	var appTitle = cola.resource("appTitle", App.prop("appTitle"));
 	App.router = function(config) {
-		cola.route(config.path, {
+		var router = cola.route(config.path, {
 			title: config.title || appTitle,
 			data: {
 				type: config.type || "subView",
@@ -28,7 +28,7 @@
 				class: config.class,
 				animation: config.animation,
 				authRequired: config.authRequired,
-				url: config.url || function() {
+				htmlUrl: config.htmlUrl || function() {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
 					path = cola.util.concatUrl("frame", path);
@@ -39,6 +39,15 @@
 				jsUrl: config.jsUrl || "$"
 			}
 		});
+
+		if (router.data.level == 0) {
+			App.channels.push({
+				name: router.name,
+				title: config.title,
+				icon: config.icon,
+				menuClass: config.menuClass
+			});
+		}
 	};
 
 	if (App._prependingRouters) {
@@ -52,7 +61,7 @@
 		path: "/link/:path",
 		type: "iFrame",
 		class: "frame",
-		url: function (router) {
+		htmlUrl: function (router) {
 			return decodeURIComponent(router.param.path);
 		}
 	});
@@ -60,7 +69,7 @@
 		path: "/browser/:path",
 		type: "iFrame",
 		class: "browser",
-		url: function (router) {
+		htmlUrl: function (router) {
 			return decodeURIComponent(router.param.path);
 		}
 	});
@@ -68,7 +77,7 @@
 	var layerStack = [], subViewLayerPool = [], linkLayerPool = [];
 	var mainViewLoaded;
 
-	function preprocessUrl(url, router) {
+	function preprocessHtmlUrl(url, router) {
 		if (typeof url == "function") url = url(router);
 		var i = url.indexOf("?");
 		if (i > 0) {
@@ -86,7 +95,7 @@
 					mainViewLoaded = true;
 
 					cola.widget("viewMain").load({
-						url: preprocessUrl("shell/main"),
+						url: preprocessHtmlUrl(App.prop("mainView")),
 						jsUrl: "$",
 						cssUrl: "$"
 					}, function () {
@@ -177,7 +186,7 @@
 
 		var cardBook = cola.widget("cardBookChannel");
 		cardBook.get$Dom().find(">div").each(function(i, card) {
-			if (card.id == "view" + cola.util.capitalize(router.name)) {
+			if (card.id == "subView" + cola.util.capitalize(router.name)) {
 				index = i;
 				return false;
 			}
@@ -193,11 +202,11 @@
 
 					menuChannel.setActiveItem(activeItem);
 					cardBook.setCurrentIndex(index);
-					var subView = cola.widget("view" + cola.util.capitalize(router.name));
-					var url = preprocessUrl(data.url, router);
-					if (subView.get("url") != url) {
+					var subView = cola.widget("subView" + cola.util.capitalize(router.name));
+					var htmlUrl = preprocessHtmlUrl(data.htmlUrl, router);
+					if (subView.get("url") != htmlUrl) {
 						subView.load({
-							url: url,
+							url: htmlUrl,
 							jsUrl: data.jsUrl,
 							cssUrl: data.jsUrl
 						});
@@ -210,7 +219,7 @@
 	function showSubViewLayer(router) {
 		var options = $.extend(router.data, null);
 		options.param = router.param;
-		options.url = preprocessUrl(options.url, router);
+		options.url = preprocessHtmlUrl(options.htmlUrl, router);
 
 		var layer = subViewLayerPool.pop();
 		if (!layer) {
@@ -263,7 +272,7 @@
 			var layer = cola.widget(layerDom);
 			layer.setTitle = function (title) {
 				this.get$Dom().find(titleQueryString).text(title);
-			}
+			};
 			layer.appendTo(document.body);
 		}
 
@@ -281,7 +290,7 @@
 
 	function showIFrameLayer(router) {
 		var options = $.extend(router.data, null);
-		options.url = preprocessUrl(options.url, router);
+		options.url = preprocessHtmlUrl(options.htmlUrl, router);
 
 		var layer;
 		if (options.class != "browser") {
@@ -413,15 +422,15 @@
 			}
 		});
 
-		var url = options.url;
-		if (typeof url == "function") {
-			url = url(cola.getCurrentRouter());
+		var htmlUrl = options.htmlUrl;
+		if (typeof htmlUrl == "function") {
+			htmlUrl = htmlUrl(cola.getCurrentRouter());
 		}
 
 		if (options.class != "browser") {
 			var iFrameDom = layer.get$Dom().find(iFrameQueryString)[0];
 			var iFrame = cola.widget(iFrameDom);
-			iFrame.open(url, function () {
+			iFrame.open(htmlUrl, function () {
 				if (options.class != "browser") {
 					try {
 						var title = iFrame.getContentWindow().document.title;
@@ -437,8 +446,8 @@
 			});
 		}
 		else {
-			layer.setTitle(url);
-			layer.webview.loadURL(url);
+			layer.setTitle(htmlUrl);
+			layer.webview.loadURL(htmlUrl);
 		}
 		return layer;
 	}
@@ -583,12 +592,18 @@
 		App.prop("sysInfoRetrieved", true);
 
 		App.prop("availableVersion", sysInfo.availableLatestVersion);
-		App.authStateChange(sysInfo.authState);
+		App.boardcastMessage({
+			type: "authStateChange",
+			data: {
+				authenticated: sysInfo.authenticated,
+				authInfo: sysInfo.authInfo
+			}
+		});
 
 		if (window.processPrependRouter) window.processPrependRouter();
 
 		if (App.prop("availableVersion") > App.prop("version")) {
-			boardcastAppMessage({
+			App.boardcastMessage({
 				type: "newVersionAvailable"
 			});
 		}
@@ -596,68 +611,40 @@
 })();
 
 cola(function (model) {
-	var messageProcessors = {
-		message: function (data) {
-			var unreadMessageCount = (parseInt(localStorage.getItem("unreadMessageCount")) || 0) + data.count;
-			localStorage.setItem("unreadMessageCount", unreadMessageCount);
-			App.setUnreadAdviceCount(App.prop("unreadAdviceCount") + data.count);
-			boardcastAppMessage({
-				type: "newMessage",
-				data: data
-			});
-		},
-		notification: function (data) {
-			var unreadNotificationCount = (parseInt(localStorage.getItem("unreadNotificationCount")) || 0) + data.count;
-			localStorage.setItem("unreadNotificationCount", unreadNotificationCount);
-			App.setUnreadAdviceCount(App.prop("unreadAdviceCount") + data.count);
-		},
-		cartItemChange: function (data) {
-			App.setCartItemCount(data.count);
-		},
-		authStateChange: function (data) {
-			App.authStateChange(data);
+	$(window).on("authStateChange", function (event, data) {
+		App.prop("authenticated", data.authenticated);
 
-			if (data.authenticated) {
-				$.get("service/message/summary").done(function (data) {
-					var unreadMessageCount = (parseInt(localStorage.getItem("unreadMessageCount")) || 0) + data.unreadMessages;
-					if (data.unreadMessages) localStorage.setItem("unreadMessageCount", unreadMessageCount);
+		if (data.authenticated) {
+			App.prop("authInfo", data.authInfo);
 
-					var unreadNotificationCount = (parseInt(localStorage.getItem("unreadNotificationCount")) || 0) + data.unreadNotifications;
-					if (data.unreadNotifications) localStorage.setItem("unreadNotificationCount", unreadNotificationCount);
-
-					if (data.unreadMessages || data.unreadNotifications) {
-						App.setUnreadAdviceCount(unreadMessageCount + unreadNotificationCount);
-					}
-
-					boardcastAppMessage({
-						type: "cartItemChange",
-						data: {count: data.cartItems}
-					});
+			$.get("service/message/summary").done(function (data) {
+				App.boardcastMessage({
+					type: "unreadMessageChange",
+					data: {count: data.unreadMessages}
 				});
-			}
-		},
-		orderPaid: function (data) {
-			hideLayers(0, function() {
-				App.openPath("my/order/" + data.orderCode);
+				App.boardcastMessage({
+					type: "unreadNotificationChange",
+					data: {count: data.unreadNotifications}
+				});
+				App.boardcastMessage({
+					type: "cartItemChange",
+					data: {count: data.cartItems}
+				});
 			});
 		}
-	};
+	});
 
 	var errorCount = 0;
 
 	function longPolling() {
-		var options = {
-			type: "GET"
-		};
+		var options = {};
 		if (App.prop("longPollingTimeout")) options.timeout = App.prop("longPollingTimeout");
 
 		$.ajax("service/message/pull", options).done(function (messages) {
 			if (messages) {
 				errorCount = 0;
 				for (var i = 0; i < messages.length; i++) {
-					var message = messages[i];
-					var processor = messageProcessors[message.type];
-					if (processor) processor(message.data);
+					App.boardcastMessage(messages[i]);
 				}
 			}
 
@@ -673,7 +660,7 @@ cola(function (model) {
 		});
 	}
 
-	setTimeout(longPolling, 1000);
+	if (App.prop("liveMessage")) setTimeout(longPolling, 1000);
 
 	function plusReady() {
 		var timerId = setInterval(function() {

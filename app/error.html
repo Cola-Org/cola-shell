@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<meta charset="UTF-8">
+	<title>Error</title>
+	<style>
+		body {
+			font-family: "Roboto", "Helvetica Neue", "Microsoft YaHei", "Lato";
+			margin: 2em;
+		}
+
+		button {
+			background: #fc6e51;
+			color: #fff;
+			padding: 0.75em 1em;
+			border-width: 0;
+		}
+	</style>
+	<script>
+		function retry() {
+			var url = location.search.substring(1);
+			url = decodeURIComponent(url);
+			var networkInfo = plus.networkinfo;
+			var currentType = networkInfo.getCurrentType();
+			if (currentType == networkInfo.CONNECTION_UNKNOW) {
+				plus.nativeUI.toast("网络未知，请检查手机网络！", {duration: "long"});
+			} else if (currentType == networkInfo.CONNECTION_NONE) {
+				plus.nativeUI.toast("未连接网络，请检查手机网络！", {duration: "long"});
+			}
+			open(url, "_self");
+		}
+	</script>
+</head>
+<body>
+<p style="text-align: center">
+	装载失败！请检查网络连接。
+</p>
+
+<p style="text-align: center">
+	<button onclick="retry()">重试</button>
+</p>
+</body>
+</html>
