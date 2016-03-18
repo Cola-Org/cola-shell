@@ -30,7 +30,7 @@ cola(function (model) {
 					$.post("service/account/sendVerifyEMail", data).done(function (result) {
 						cola.widget("formVerify").hideDimmer();
 						if (result.success) {
-							App.openPath("forgot-password2?email=" + encodeURIComponent(model.get("email"))
+							App.open("forgot-password2?email=" + encodeURIComponent(model.get("email"))
 								+ "&token=" + result.token);
 						}
 						else {

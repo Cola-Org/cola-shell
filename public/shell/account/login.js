@@ -16,7 +16,7 @@ cola(function (model) {
 			var data = model.get();
 			if (data.validate()) {
 				cola.widget("containerSignIn").showDimmer();
-				$.post("service/account/login", model.get()).done(function (authState) {
+				$.post(App.prop("service.login"), model.get()).done(function (authState) {
 					cola.widget("containerSignIn").hideDimmer();
 
 					App.setReturnValue(authState.authenticated);
@@ -40,7 +40,7 @@ cola(function (model) {
 							history.back();
 						}
 						else {
-							cola.setRoutePath(decodeURIComponent(forward) || "/");
+							App.open(decodeURIComponent(forward) || "/", true);
 						}
 					}
 					else {
@@ -68,9 +68,8 @@ cola(function (model) {
 		},
 		buttonRegister: {
 			$type: "button",
-			class: "green",
+			class: "fluid green",
 			caption: cola.resource("register"),
-			width: "100%",
 			click: function () {
 				cola.setRoutePath("/register" + location.search);
 			}

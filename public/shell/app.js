@@ -19,24 +19,22 @@
 	var properties;
 	if (!rootApp) {
 		properties = {
-			version: "",
-			domainRegExp: null,
 			contextPath: "/",
-			servicePrefix: "/",
-			defaultRouterPath: "/home",
-			signInPath: "/login",
-			mainView: "shell/main-channel-bottom",
+			serviceUrlPattern: /^\/?service\/[a-z]+/,
+			serviceUrlPrefix: "/",
 			htmlSuffix: "",
+			defaultRouterPath: "/home",
+			mainView: "shell/main-channel-bottom",
+			loginPath: "/login",
 			longPollingTimeout: 0,
 			longPollingInterval: 2000,
-			safeEffect: false && cola.os.android && !cola.browser.chrome
-		};
+			safeEffect: false && cola.os.android && !cola.browser.chrome,
 
-		properties.unreadAdviceCount = 0;
-		var unreadMessages = JSON.parse(localStorage.getItem("unreadMessages"));
-		if (unreadMessages) properties.unreadAdviceCount += unreadMessages.length;
-		var notifications = JSON.parse(localStorage.getItem("notifications"));
-		if (notifications) properties.unreadAdviceCount += notifications.length;
+			"service.sysInfo": "service/sys/info",
+			"service.login": "service/account/login",
+			"service.messagePull": "service/message/pull",
+			"service.messageSummary": "service/message/summary"
+		};
 	}
 
 	var App = window.App = {
@@ -86,8 +84,29 @@
 			this.router(config);
 		},
 
-		openPath: function (path, target, callback, replace) {
-			var argument;
+		open: function (path, config) {
+			var target, callback, replace, argument;
+
+			if (config) {
+				switch (typeof(config)) {
+					case "string":
+						target = config;
+						break;
+					case "function":
+						callback = config;
+						break;
+					case "boolean":
+						replace = config;
+						break;
+					case "object":
+						target = config.target;
+						callback = config.callback;
+						argument = config.argument;
+						replace = config.replace;
+						break;
+				}
+			}
+
 			if (typeof target == "function") {
 				replace = callback;
 				callback = target;
@@ -142,10 +161,10 @@
 					nextPath = null;
 				}
 
-				var path = App.prop("signInPath"), realNextPath = nextPath || cola.getCurrentRoutePath();
+				var path = App.prop("loginPath"), realNextPath = nextPath || cola.getCurrentRoutePath();
 
 				if (realNextPath) path += "?" + encodeURIComponent(realNextPath);
-				this.openPath(path, undefined, callback, replace);
+				this.open(path, undefined, callback, replace);
 			}
 		},
 
@@ -171,7 +190,7 @@
 		}
 	};
 
-	var servicePrefix = App.prop("servicePrefix");
+	var serviceUrlPrefix = App.prop("serviceUrlPrefix");
 	$(document).ajaxError(function (event, jqXHR) {
 		if (jqXHR.status == 401) {
 			App.goSignIn();
@@ -186,9 +205,9 @@
 	});
 	$.ajaxPrefilter(function (options) {
 		var url = options.url;
-		if (servicePrefix && url.match(/^\/?service\/[a-z]+/)) {
-			options.url = cola.util.concatUrl(servicePrefix, url);
-			options.crossDomain = true;
+		if (serviceUrlPrefix && url.match(App.prop("serviceUrlPattern"))) {
+			options.url = cola.util.concatUrl(serviceUrlPrefix, url);
+			if (serviceUrlPrefix != "/") options.crossDomain = true;
 		}
 		//options.contentType = "text/plain";
 	});
@@ -204,7 +223,7 @@
 		$(document.body).delegate("a.state", "click", function (evt) {
 			var href = this.getAttribute("href");
 			if (href) {
-				App.openPath(href, this.getAttribute("target"));
+				App.open(href, this.getAttribute("target"));
 			}
 			evt.stopImmediatePropagation();
 			return false;

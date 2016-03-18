@@ -34,7 +34,7 @@ cola(function (model) {
 						cola.widget("formPassword").hideDimmer();
 						cola.alert(result.message);
 						if (result.success) {
-							App.openPath("login");
+							App.open("login");
 						}
 					}).fail(function () {
 						cola.widget("formPassword").hideDimmer();

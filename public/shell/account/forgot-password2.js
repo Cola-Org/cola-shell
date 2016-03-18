@@ -25,7 +25,7 @@ cola(function (model) {
 					$.post("service/account/verifyEMail", data).done(function (result) {
 						cola.widget("formVerify").hideDimmer();
 						if (result.success) {
-							App.openPath("new-password?" + encodeURIComponent(result.token));
+							App.open("new-password?" + encodeURIComponent(result.token));
 						}
 						else {
 							cola.alert(result.message);

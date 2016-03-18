@@ -521,7 +521,7 @@
 				if (layerInfo.type != layerType) continue;
 				try {
 					if (layerInfo.type == "iFrame") {
-						var frameWindow = layerInfo.layer.get$Dom().find(iFrameQueryString)[0].contentWindow;
+						var frameWindow = layerInfo.layer.get$Dom().find(iFrameQueryString + " >iframe")[0].contentWindow;
 						if (frameWindow == subWindow) {
 							return layerInfo;
 						}
@@ -588,7 +588,7 @@
 		}
 	};
 
-	$.get("service/message/sysInfo").done(function (sysInfo) {
+	$.get(App.prop("service.sysInfo")).done(function (sysInfo) {
 		App.prop("sysInfoRetrieved", true);
 
 		App.prop("availableVersion", sysInfo.availableLatestVersion);
@@ -617,20 +617,18 @@ cola(function (model) {
 		if (data.authenticated) {
 			App.prop("authInfo", data.authInfo);
 
-			$.get("service/message/summary").done(function (data) {
-				App.boardcastMessage({
-					type: "unreadMessageChange",
-					data: {count: data.unreadMessages}
+			if (App.prop("liveMessage")) {
+				$.get(App.prop("service.messageSummary")).done(function (data) {
+					App.boardcastMessage({
+						type: "unreadChatMessageChange",
+						data: {count: data.unreadChatMessages}
+					});
+					App.boardcastMessage({
+						type: "unreadNotificationChange",
+						data: {count: data.unreadNotifications}
+					});
 				});
-				App.boardcastMessage({
-					type: "unreadNotificationChange",
-					data: {count: data.unreadNotifications}
-				});
-				App.boardcastMessage({
-					type: "cartItemChange",
-					data: {count: data.cartItems}
-				});
-			});
+			}
 		}
 	});
 
@@ -640,7 +638,7 @@ cola(function (model) {
 		var options = {};
 		if (App.prop("longPollingTimeout")) options.timeout = App.prop("longPollingTimeout");
 
-		$.ajax("service/message/pull", options).done(function (messages) {
+		$.ajax(App.prop("service.messagePull"), options).done(function (messages) {
 			if (messages) {
 				errorCount = 0;
 				for (var i = 0; i < messages.length; i++) {
