@@ -122,6 +122,7 @@
 				rootWindow.open(path, target);
 			}
 			else if (path.match(/^https*:/)) {
+				var domainRegExp = App.prop("domainRegExp");
 				if (this.getPlus()) {
 					var match = domainRegExp && path.match(domainRegExp);
 					if (match) {
@@ -141,14 +142,24 @@
 			}
 		},
 
-		setReturnValue: function(value) {
-			var layerInfo = this.getRootWindow().getLayerInfo(window);
-			if (layerInfo && value != null) layerInfo.returnValue = JSON.stringify(value);
+		getArgument: function(model) {
+			var layerInfo = this.getRootWindow().getLayerInfo(model);
+			if (layerInfo) return layerInfo.argument;
 		},
 
-		goSignIn: function (nextPath, callback) {
+		setReturnValue: function(model, value) {
+			var layerInfo = this.getRootWindow().getLayerInfo(model);
+			if (layerInfo && value != null) {
+				if (this.getRootWindow() != window) {
+					value = JSON.stringify(value);
+				}
+				layerInfo.returnValue = value;
+			}
+		},
+
+		goLogin: function (nextPath, callback) {
 			if (rootApp) {
-				return rootApp.goSignIn(nextPath, callback);
+				return rootApp.goLogin(nextPath, callback);
 			}
 			else {
 				var replace;
@@ -168,16 +179,8 @@
 			}
 		},
 
-		getLayerInfo: function() {
-			return this.getRootWindow().getLayerInfo(window);
-		},
-
-		getParentLayerInfo: function() {
-			return this.getRootWindow().getParentLayerInfo(window);
-		},
-
-		setDocumentTitle: function (title, model) {
-			this.getRootWindow().subViewTitleChange(title, model, window);
+		setTitle: function (model, title) {
+			this.getRootWindow().layerTitleChange(model, title);
 		},
 
 		boardcastMessage: function(message) {
@@ -193,7 +196,7 @@
 	var serviceUrlPrefix = App.prop("serviceUrlPrefix");
 	$(document).ajaxError(function (event, jqXHR) {
 		if (jqXHR.status == 401) {
-			App.goSignIn();
+			App.goLogin();
 			return false;
 		}
 		else {

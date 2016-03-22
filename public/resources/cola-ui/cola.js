@@ -1,4 +1,4 @@
-/*! Cola UI - 0.8.2
+/*! Cola UI - 0.8.3
  * Copyright (c) 2002-2016 BSTEK Corp. All rights reserved.
  *
  * This file is dual-licensed under the AGPLv3 (http://www.gnu.org/licenses/agpl-3.0.html)
@@ -949,7 +949,7 @@
 
 
   /*
-  Mothods
+  Methods
    */
 
   cola.callback = function(callback, success, result) {
@@ -9859,7 +9859,7 @@
 
 }).call(this);
 
-/*! Cola UI - 0.8.2
+/*! Cola UI - 0.8.3
  * Copyright (c) 2002-2016 BSTEK Corp. All rights reserved.
  *
  * This file is dual-licensed under the AGPLv3 (http://www.gnu.org/licenses/agpl-3.0.html)
@@ -16975,10 +16975,10 @@
         return;
       }
       this._value = value;
-      this.fire("change", this, arg);
       if (value !== this._modelValue) {
         this.post();
       }
+      this.fire("change", this, arg);
       return true;
     };
 
@@ -20413,10 +20413,12 @@
       parseItem = (function(_this) {
         return function(node) {
           var childNode;
-          _this._items = [];
           childNode = node.firstChild;
           while (childNode) {
             if (childNode.nodeType === 1) {
+              if (!_this._items) {
+                _this._items = [];
+              }
               _this.addItem(childNode);
             }
             childNode = childNode.nextSibling;
@@ -20493,7 +20495,7 @@
         this._doms.wrap.appendChild(template);
         cola.xRender(template, this._scope);
       }
-      if (this._items) {
+      if (this._getItems().items) {
         this._itemsRender();
         this.refreshIndicators();
       }
@@ -20538,6 +20540,16 @@
       }
     };
 
+    Carousel.prototype._getItems = function() {
+      if (this._items) {
+        return {
+          items: this._items
+        };
+      } else {
+        return Carousel.__super__._getItems.call(this);
+      }
+    };
+
     Carousel.prototype.setCurrentIndex = function(index) {
       var activeSpan, e, error, pos;
       this.fire("change", this, {
@@ -20567,9 +20579,14 @@
     };
 
     Carousel.prototype.refreshIndicators = function() {
-      var currentIndex, i, indicatorCount, itemsCount, ref, ref1, span;
-      itemsCount = (ref = this._items) != null ? ref.length : void 0;
-      if (!((ref1 = this._doms) != null ? ref1.indicators : void 0)) {
+      var currentIndex, i, indicatorCount, items, itemsCount, ref, span;
+      items = this._getItems().items;
+      if (items) {
+        itemsCount = items instanceof cola.EntityList ? items.entityCount : items.length;
+      } else {
+        itemsCount = 0;
+      }
+      if (!((ref = this._doms) != null ? ref.indicators : void 0)) {
         return;
       }
       indicatorCount = this._doms.indicators.children.length;
@@ -20599,10 +20616,11 @@
     };
 
     Carousel.prototype.next = function() {
-      var pos;
-      if (this._scroller) {
+      var items, pos;
+      items = this._getItems().items;
+      if (items && this._scroller) {
         pos = this._scroller.getPos();
-        if (pos === (this._items.length - 1)) {
+        if (pos === (items.length - 1)) {
           this.goTo(0);
         } else {
           this._scroller.next();
@@ -20612,11 +20630,12 @@
     };
 
     Carousel.prototype.previous = function() {
-      var pos;
-      if (this._scroller) {
+      var items, pos;
+      items = this._getItems().items;
+      if (items && this._scroller) {
         pos = this._scroller.getPos();
         if (pos === 0) {
-          this.goTo(this._items.length - 1);
+          this.goTo(_items.length - 1);
         } else {
           this._scroller.prev();
         }
@@ -22898,8 +22917,7 @@
         type: "boolean"
       },
       autoLoadPage: {
-        type: "boolean",
-        defaultValue: true
+        type: "boolean"
       },
       changeCurrentItem: {
         type: "boolean"

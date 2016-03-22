@@ -21,9 +21,9 @@
 	App.router = function(config) {
 		var router = cola.route(config.path, {
 			title: config.title || appTitle,
+			name: config.name,
 			data: {
 				type: config.type || "subView",
-				name: config.name,
 				level: (config.level == null) ? 1 : config.level,
 				class: config.class,
 				animation: config.animation,
@@ -31,8 +31,8 @@
 				htmlUrl: config.htmlUrl || function() {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
-					path = cola.util.concatUrl("frame", path);
-					if (config.type == "iFrame") path += location.search;
+					path = cola.util.concatUrl("card", path);
+					if (config.type == "iFrame") path += location.search + location.hash;
 					return path;
 				},
 				cssUrl: config.cssUrl || "$",
@@ -83,11 +83,39 @@
 		if (i > 0) {
 			url = url.substring(0, i) + App.prop("htmlSuffix") + url.substring(i);
 		}
+		var params = url.match(/{\$*[\w-]+}/g);
+		if (params) {
+			for (i = 0; i < params.length; i++) {
+				var param = params[i];
+				param = param.substring(1, param.length - 1);
+				var value;
+				if (param === "$search") value = location.search;
+				else if (param === "$hash") value = location.hash;
+				else value = router.param[param];
+				url = url.replace(params[i], value);
+			}
+		}
 		return url;
 	}
 
 	cola.on("routerSwitch", function (self, arg) {
-		var nextRouter = arg.next;
+
+		function pushLayerInfo(layer, path, data, subModel) {
+			layerStack.push({
+				type: data.type,
+				level: data.level,
+				path: path,
+				layer: layer,
+				class: data.class,
+				model: subModel,
+				argument: layerArgument,
+				callback: layerCallback
+			});
+			layerArgument = undefined;
+			layerCallback = undefined;
+		}
+
+		var nextRouter = arg.next, path = arg.path;
 		if (nextRouter) {
 			var data = nextRouter.data;
 			if (data.level == 0) {
@@ -99,17 +127,19 @@
 						jsUrl: "$",
 						cssUrl: "$"
 					}, function () {
-						hideLayers(0);
-						switchChannel(nextRouter);
+						switchChannel(nextRouter, arg.nextModel, function(subView) {
+							pushLayerInfo(subView, path, data, arg.nextModel);
+						});
 					});
 				}
 				else {
-					hideLayers(0);
-					switchChannel(nextRouter);
+					switchChannel(nextRouter, arg.nextModel, function(subView) {
+						pushLayerInfo(subView, path, data, arg.nextModel);
+					});
 				}
 			}
 			else if (data.level == 1) {
-				var path = arg.path, newLayer = true;
+				var newLayer = true;
 				for (var i = 0, len = layerStack.length, layerInfo; i < len; i++) {
 					layerInfo = layerStack[i];
 					if (layerInfo.path == path) {
@@ -128,18 +158,7 @@
 						else if (data.type == "iFrame") {
 							layer = showIFrameLayer(nextRouter);
 						}
-						if (layer) {
-							layerStack.push({
-								type: data.type,
-								path: path,
-								layer: layer,
-								class: data.class,
-								argument: layerArgument,
-								callback: layerCallback
-							});
-							layerArgument = undefined;
-							layerCallback = undefined;
-						}
+						if (layer) pushLayerInfo(layer, path, data, arg.nextModel);
 					});
 				}
 			}
@@ -150,7 +169,7 @@
 		if (router.data.authRequired) {
 			if (App.prop("sysInfoRetrieved")) {
 				if (!App.prop("authenticated")) {
-					App.goSignIn(true);
+					App.goLogin(true);
 				}
 				else {
 					callback();
@@ -159,7 +178,7 @@
 			else {
 				window.processPrependRouter = function () {
 					if (!App.prop("authenticated")) {
-						App.goSignIn(true);
+						App.goLogin(true);
 					}
 					else {
 						callback();
@@ -177,7 +196,9 @@
 	var titleQueryString = ">.v-box >.title-bar >.title";
 
 	var currentChannel = null;
-	function switchChannel(router) {
+	function switchChannel(router, subModel, callback) {
+		hideLayers(0);
+
 		var data = router.data, index = -1;
 
 		var oldChannel = currentChannel;
@@ -205,12 +226,14 @@
 					var subView = cola.widget("subView" + cola.util.capitalize(router.name));
 					var htmlUrl = preprocessHtmlUrl(data.htmlUrl, router);
 					if (subView.get("url") != htmlUrl) {
-						subView.load({
+						subView.addClass("card").load({
 							url: htmlUrl,
 							jsUrl: data.jsUrl,
 							cssUrl: data.jsUrl
 						});
 					}
+
+					if (callback) callback(subView);
 				});
 			}
 		}
@@ -260,6 +283,7 @@
 							content: {
 								tagName: "div",
 								contextKey: "subView",
+								class: "card",
 								"c-widget": {
 									$type: "subView"
 								}
@@ -497,54 +521,33 @@
 		}
 
 		var layer = layerInfo.layer;
-		if (animation) {
-			layer.hide(invokeCallback);
-		}
-		else {
-			layer.hide({animation: "none"});
-			invokeCallback();
-		}
+		if (layerInfo.level > 0) {
+			if (animation) {
+				layer.hide(invokeCallback);
+			}
+			else {
+				layer.hide({animation: "none"});
+				invokeCallback();
+			}
 
-		if (layerInfo.type == "subView") {
-			subViewLayerPool.push(layer);
-		}
-		else if (layerInfo.type == "iFrame" && layerInfo.class != "browser") {
-			linkLayerPool.push(layer);
+			if (layerInfo.type == "subView") {
+				subViewLayerPool.push(layer);
+			}
+			else if (layerInfo.type == "iFrame" && layerInfo.class != "browser") {
+				linkLayerPool.push(layer);
+			}
 		}
 	}
 
-	window.getLayerInfo = function (subWindow) {
+	window.getLayerInfo = function (subModel) {
 		if (layerStack) {
-			var layerType = (subWindow == window) ? "subView" : "iFrame";
 			for (var i = layerStack.length - 1; i >= 0; i--) {
 				var layerInfo = layerStack[i];
-				if (layerInfo.type != layerType) continue;
 				try {
-					if (layerInfo.type == "iFrame") {
-						var frameWindow = layerInfo.layer.get$Dom().find(iFrameQueryString + " >iframe")[0].contentWindow;
-						if (frameWindow == subWindow) {
-							return layerInfo;
-						}
-					}
-					else if (layerInfo.type == "subView") {
-						if (cola.util.concatUrl(contextPath, layerInfo.path) == subWindow.location.pathname) {
-							return layerInfo;
-						}
-					}
+					if (layerInfo.model == subModel) return layerInfo;
 				}
 				catch (e) {
 				}
-			}
-		}
-		return null;
-	};
-
-	window.getParentLayerInfo = function (subWindow) {
-		if (layerStack) {
-			var layerInfo = getLayerInfo(subWindow);
-			if (layerInfo) {
-				var i = layerStack.indexOf(layerInfo);
-				if (i > 0) return layerStack[i - 1];
 			}
 		}
 		return null;
@@ -557,33 +560,12 @@
 		cola.setRoutePath(path, replace);
 	};
 
-	window.subViewTitleChange = function(title, model, subWindow) {
-		if (layerStack) {
-			try {
-				var layerInfos = layerStack;
-				var i = layerInfos.length - 1;
-				while (i >= 0) {
-					var layerInfo = layerInfos[i];
-					if (!model && layerInfo.type === "iFrame") {
-						var frameWindow = layerInfo.layer.get$Dom().find(iFrameQueryString)[0].contentWindow;
-						if (frameWindow === subWindow) {
-							layerInfo.layer.setTitle(title);
-							break;
-						}
-					} else if (model && layerInfo.type === "subView") {
-						var subView = layerInfo.layer.get$Dom().find(subViewQueryString)[0];
-						if (subView && cola.widget(subView).get("model") === model) {
-							layerInfo.layer.setTitle(title);
-							break;
-						}
-					}
-					i--;
-				}
-				if (i === layerInfos.length - 1) {
-					document.title = title || "";
-				}
-			} catch (e) {
-				// do nothing;
+	window.layerTitleChange = function(model, title) {
+		var layerInfo = getLayerInfo(model);
+		if (layerInfo) {
+			layerInfo.layer.setTitle(title);
+			if (i === layerStack.length - 1) {
+				document.title = title || "";
 			}
 		}
 	};
