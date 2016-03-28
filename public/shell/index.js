@@ -100,14 +100,19 @@
 
 	cola.on("routerSwitch", function (self, arg) {
 
-		function pushLayerInfo(layer, path, data, subModel) {
+		function pushLayerInfo(layer, path, data) {
+			if (layerArgument) {
+				if (layerArgument instanceof cola.Entity || layerArgument instanceof cola.EntityList) {
+					layerArgument = layerArgument.toJSON();
+				}
+			}
+
 			layerStack.push({
 				type: data.type,
 				level: data.level,
 				path: path,
 				layer: layer,
 				class: data.class,
-				model: subModel,
 				argument: layerArgument,
 				callback: layerCallback
 			});
@@ -127,14 +132,14 @@
 						jsUrl: "$",
 						cssUrl: "$"
 					}, function () {
-						switchChannel(nextRouter, arg.nextModel, function(subView) {
-							pushLayerInfo(subView, path, data, arg.nextModel);
+						switchChannel(nextRouter, function(subView) {
+							pushLayerInfo(subView, path, data);
 						});
 					});
 				}
 				else {
-					switchChannel(nextRouter, arg.nextModel, function(subView) {
-						pushLayerInfo(subView, path, data, arg.nextModel);
+					switchChannel(nextRouter, function(subView) {
+						pushLayerInfo(subView, path, data);
 					});
 				}
 			}
@@ -158,7 +163,7 @@
 						else if (data.type == "iFrame") {
 							layer = showIFrameLayer(nextRouter);
 						}
-						if (layer) pushLayerInfo(layer, path, data, arg.nextModel);
+						if (layer) pushLayerInfo(layer, path, data);
 					});
 				}
 			}
@@ -196,7 +201,7 @@
 	var titleQueryString = ">.v-box >.title-bar >.title";
 
 	var currentChannel = null;
-	function switchChannel(router, subModel, callback) {
+	function switchChannel(router, callback) {
 		hideLayers(0);
 
 		var data = router.data, index = -1;
@@ -224,10 +229,10 @@
 					menuChannel.setActiveItem(activeItem);
 					cardBook.setCurrentIndex(index);
 					var subView = cola.widget("subView" + cola.util.capitalize(router.name));
-					var htmlUrl = preprocessHtmlUrl(data.htmlUrl, router);
-					if (subView.get("url") != htmlUrl) {
+					data.url = preprocessHtmlUrl(data.htmlUrl, router);
+					if (subView.get("url") != data.url) {
 						subView.addClass("card").load({
-							url: htmlUrl,
+							url: data.url,
 							jsUrl: data.jsUrl,
 							cssUrl: data.jsUrl
 						});
@@ -446,15 +451,10 @@
 			}
 		});
 
-		var htmlUrl = options.htmlUrl;
-		if (typeof htmlUrl == "function") {
-			htmlUrl = htmlUrl(cola.getCurrentRouter());
-		}
-
 		if (options.class != "browser") {
 			var iFrameDom = layer.get$Dom().find(iFrameQueryString)[0];
 			var iFrame = cola.widget(iFrameDom);
-			iFrame.open(htmlUrl, function () {
+			iFrame.open(options.url, function () {
 				if (options.class != "browser") {
 					try {
 						var title = iFrame.getContentWindow().document.title;
@@ -470,8 +470,8 @@
 			});
 		}
 		else {
-			layer.setTitle(htmlUrl);
-			layer.webview.loadURL(htmlUrl);
+			layer.setTitle(options.url);
+			layer.webview.loadURL(options.url);
 		}
 		return layer;
 	}
@@ -539,14 +539,23 @@
 		}
 	}
 
-	window.getLayerInfo = function (subModel) {
+	window.getLayerInfo = function (subModel, subWindow) {
 		if (layerStack) {
 			for (var i = layerStack.length - 1; i >= 0; i--) {
 				var layerInfo = layerStack[i];
-				try {
-					if (layerInfo.model == subModel) return layerInfo;
+				if (layerInfo.type == "iFrame") {
+					try {
+						var $iFrame = layerInfo.layer.get$Dom().find(iFrameQueryString);
+						var iFrame = cola.widget($iFrame[0]);
+						if (iFrame.getContentWindow() == subWindow) return layerInfo;
+					}
+					catch (e) {
+					}
 				}
-				catch (e) {
+				else {
+					var $subView = layerInfo.layer.get$Dom().find(subViewQueryString);
+					var subView = cola.widget($subView[0]);
+					if (subView.get("model") == subModel) return layerInfo;
 				}
 			}
 		}
@@ -560,8 +569,8 @@
 		cola.setRoutePath(path, replace);
 	};
 
-	window.layerTitleChange = function(model, title) {
-		var layerInfo = getLayerInfo(model);
+	window.layerTitleChange = function(subModel, subWindow, title) {
+		var layerInfo = getLayerInfo(subModel, subWindow);
 		if (layerInfo) {
 			layerInfo.layer.setTitle(title);
 			if (i === layerStack.length - 1) {

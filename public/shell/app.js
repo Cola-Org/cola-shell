@@ -107,16 +107,6 @@
 				}
 			}
 
-			if (typeof target == "function") {
-				replace = callback;
-				callback = target;
-				target = null;
-			}
-			else if (typeof callback == "function") {
-				argument = target;
-				target = null;
-			}
-
 			var rootWindow = this.getRootWindow();
 			if (target && target != "_self") {
 				rootWindow.open(path, target);
@@ -143,17 +133,17 @@
 		},
 
 		getArgument: function(model) {
-			var layerInfo = this.getRootWindow().getLayerInfo(model);
+			var layerInfo = this.getRootWindow().getLayerInfo(model, window);
 			if (layerInfo) return layerInfo.argument;
 		},
 
 		setReturnValue: function(model, value) {
-			var layerInfo = this.getRootWindow().getLayerInfo(model);
+			var layerInfo = this.getRootWindow().getLayerInfo(model, window);
 			if (layerInfo && value != null) {
-				if (this.getRootWindow() != window) {
-					value = JSON.stringify(value);
+				if (value instanceof cola.Entity || value instanceof cola.EntityList) {
+					value = value.toJSON();
 				}
-				layerInfo.returnValue = value;
+				layerInfo.returnValue = JSON.stringify(value);
 			}
 		},
 
@@ -180,7 +170,7 @@
 		},
 
 		setTitle: function (model, title) {
-			this.getRootWindow().layerTitleChange(model, title);
+			this.getRootWindow().layerTitleChange(model, window, title);
 		},
 
 		boardcastMessage: function(message) {
