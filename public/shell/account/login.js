@@ -12,14 +12,13 @@ cola(function (model) {
 	model.action({
 		signIn: function () {
 			cola.widget("formSignIn").setMessages(null);
-
 			var data = model.get();
 			if (data.validate()) {
 				cola.widget("containerSignIn").showDimmer();
 				$.post(App.prop("service.login"), model.get()).done(function (authState) {
 					cola.widget("containerSignIn").hideDimmer();
-
 					App.setReturnValue(authState.authenticated);
+
 					if (authState.authenticated) {
 						cola.widget("containerSignIn").hideDimmer();
 

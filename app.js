@@ -9,11 +9,6 @@ var routes = require('./routes/index');
 var card = require('./routes/card');
 var service = require('./routes/service');
 
-var httpProxy = require("http-proxy");
-var proxy = httpProxy.createProxy({
-	target: 'http://localhost:4002'
-});
-
 var app = express();
 
 // view engine setup
@@ -35,14 +30,9 @@ app.use('/service', service);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
-	if (req.originalUrl.indexOf("/service/") >= 0) {
-		proxy.web(req, res);
-	}
-	else {
-		var err = new Error('Not Found');
-		err.status = 404;
-		next(err);
-	}
+	var err = new Error('Not Found');
+	err.status = 404;
+	next(err);
 });
 
 // error handlers

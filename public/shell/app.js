@@ -22,7 +22,9 @@
 			contextPath: "/",
 			serviceUrlPattern: /^\/?service\/[a-z]+/,
 			serviceUrlPrefix: "/",
+			serviceUrlReplacePattern: null,
 			htmlSuffix: "",
+			defaultAuthRequired: false,
 			defaultRouterPath: "/home",
 			mainView: "shell/main-channel-bottom",
 			loginPath: "/login",
@@ -32,6 +34,7 @@
 
 			"service.sysInfo": "service/sys/info",
 			"service.login": "service/account/login",
+			"service.logout": "service/account/logout",
 			"service.messagePull": "service/message/pull",
 			"service.messageSummary": "service/message/summary"
 		};
@@ -148,6 +151,20 @@
 		},
 
 		goLogin: function (nextPath, callback) {
+			function trimPath(path) {
+				if (path)
+					if (path.charCodeAt(0) == 47) // `/`
+						path = path.substring(1);
+					if (path.charCodeAt(path.length - 1) == 47)	// `/`
+						path = path.substring(0, path.length - 1);
+				return path || "";
+			}
+
+
+			if (trimPath(cola.getCurrentRoutePath()) == trimPath(App.prop("loginPath"))) {
+				return;
+			}
+
 			if (rootApp) {
 				return rootApp.goLogin(nextPath, callback);
 			}
@@ -169,6 +186,16 @@
 			}
 		},
 
+		logout: function(callback) {
+			$.post(App.prop("logoutPath"), function() {
+				App.boardcastMessage({
+					type: "authStateChange",
+					data: { authenticated: false }
+				});
+				if (callback) callback();
+			});
+		},
+
 		setTitle: function (model, title) {
 			this.getRootWindow().layerTitleChange(model, window, title);
 		},
@@ -183,7 +210,6 @@
 		}
 	};
 
-	var serviceUrlPrefix = App.prop("serviceUrlPrefix");
 	$(document).ajaxError(function (event, jqXHR) {
 		if (jqXHR.status == 401) {
 			App.goLogin();
@@ -192,13 +218,23 @@
 		else {
 			var message = jqXHR.responseJSON;
 			if (message) {
-				throw new cola.Exception(message);
+				if (typeof message == "object") {
+					throw new cola.Exception(message.msg);
+				}
+				else {
+					throw new cola.Exception(message);
+				}
 			}
 		}
 	});
 	$.ajaxPrefilter(function (options) {
+		var serviceUrlPrefix = App.prop("serviceUrlPrefix");
+		var serviceUrlReplacePattern = App.prop("serviceUrlReplacePattern");
 		var url = options.url;
 		if (serviceUrlPrefix && url.match(App.prop("serviceUrlPattern"))) {
+			if (serviceUrlReplacePattern) {
+				url = url.replace(serviceUrlReplacePattern, "");
+			}
 			options.url = cola.util.concatUrl(serviceUrlPrefix, url);
 			if (serviceUrlPrefix != "/") options.crossDomain = true;
 		}
@@ -208,7 +244,7 @@
 	cola.defaultAction("setting", function(key) {
 		return App.prop(key);
 	});
-	cola.defaultAction("numberString", function(number) {
+	cola.defaultAction("number2Word", function(number) {
 		return ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"][number - 1];
 	});
 

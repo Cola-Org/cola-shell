@@ -1,7 +1,7 @@
 "use strict";
 
 (function() {
-	var zIndexSeed = 2000, contextPath = App.prop("contextPath"), lastBrowserUrl;
+	var zIndexSeed = 100, contextPath = App.prop("contextPath"), lastBrowserUrl;
 
 	var defaultPath, path = location.pathname;
 	if (path && contextPath) {
@@ -27,7 +27,7 @@
 				level: (config.level == null) ? 1 : config.level,
 				class: config.class,
 				animation: config.animation,
-				authRequired: config.authRequired,
+				authRequired: (config.authRequired == undefined) ? App.prop("defaultAuthRequired") : config.authRequired,
 				htmlUrl: config.htmlUrl || function() {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
@@ -83,6 +83,10 @@
 		if (i > 0) {
 			url = url.substring(0, i) + App.prop("htmlSuffix") + url.substring(i);
 		}
+		else {
+			url = url + App.prop("htmlSuffix");
+		}
+
 		var params = url.match(/{\$*[\w-]+}/g);
 		if (params) {
 			for (i = 0; i < params.length; i++) {
@@ -231,7 +235,7 @@
 					var subView = cola.widget("subView" + cola.util.capitalize(router.name));
 					data.url = preprocessHtmlUrl(data.htmlUrl, router);
 					if (subView.get("url") != data.url) {
-						subView.addClass("card").load({
+						subView.load({
 							url: data.url,
 							jsUrl: data.jsUrl,
 							cssUrl: data.jsUrl
@@ -288,7 +292,6 @@
 							content: {
 								tagName: "div",
 								contextKey: "subView",
-								class: "card",
 								"c-widget": {
 									$type: "subView"
 								}
@@ -551,6 +554,10 @@
 					}
 					catch (e) {
 					}
+				}
+				else if (i == 0) {
+					var subView = layerInfo.layer;
+					if (subView.get("model") == subModel) return layerInfo;
 				}
 				else {
 					var $subView = layerInfo.layer.get$Dom().find(subViewQueryString);
