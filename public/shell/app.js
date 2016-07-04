@@ -30,6 +30,7 @@
 			loginPath: "/login",
 			longPollingTimeout: 0,
 			longPollingInterval: 2000,
+			routerPrefix:"frame",
 			safeEffect: false && cola.os.android && !cola.browser.chrome,
 
 			"service.sysInfo": "service/sys/info",

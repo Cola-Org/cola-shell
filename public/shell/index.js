@@ -31,7 +31,7 @@
 				htmlUrl: config.htmlUrl || function() {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
-					path = cola.util.concatUrl("card", path);
+					path = cola.util.concatUrl(App.prop("routerPrefix"), path);
 					if (config.type == "iFrame") path += location.search + location.hash;
 					return path;
 				},
