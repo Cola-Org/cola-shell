@@ -84,7 +84,7 @@ module.exports = function (grunt) {
 						for (i = 0; i < lines.length; i++) {
 							line = lines[i];
 							line = line.replace(/\r/g, "");
-							if (line && line.substring(0, 6) === "frame/" && line.indexOf(".") < 0) {
+							if (line && line.substring(0, 6) === "card/" && line.indexOf(".") < 0) {
 								lines[i] = line + configure.htmlSuffix;
 							}
 						}

@@ -30,7 +30,6 @@
 			loginPath: "/login",
 			longPollingTimeout: 0,
 			longPollingInterval: 2000,
-			routerPrefix:"frame",
 			safeEffect: false && cola.os.android && !cola.browser.chrome,
 
 			"service.sysInfo": "service/sys/info",
@@ -112,7 +111,7 @@
 			}
 
 			var rootWindow = this.getRootWindow();
-			if (target && target != "_self") {
+			if (target) {
 				rootWindow.open(path, target);
 			}
 			else if (path.match(/^https*:/)) {
@@ -120,11 +119,19 @@
 				if (this.getPlus()) {
 					var match = domainRegExp && path.match(domainRegExp);
 					if (match) {
-						path = "link/" + encodeURIComponent(path.substring(match[0].length));
-						rootWindow.setRoutePath(window, path, argument, callback, replace);
+						path = "link?" + encodeURIComponent(path.substring(match[0].length));
+						rootWindow.setRoutePath(window, path, {
+							argument: argument,
+							callback: callback,
+							replace: replace
+						});
 					}
 					else {
-						rootWindow.setRoutePath(window, "browser/" + encodeURIComponent(path), argument, callback, replace);
+						rootWindow.setRoutePath(window, "browser?" + encodeURIComponent(path), {
+							argument: argument,
+							callback: callback,
+							replace: replace
+						});
 					}
 				}
 				else {
@@ -132,7 +139,11 @@
 				}
 			}
 			else {
-				rootWindow.setRoutePath(window, path, argument, callback, replace);
+				rootWindow.setRoutePath(window, path, {
+					argument: argument,
+					callback: callback,
+					replace: replace
+				});
 			}
 		},
 
@@ -152,15 +163,15 @@
 		},
 
 		goLogin: function (nextPath, callback) {
+
 			function trimPath(path) {
 				if (path)
 					if (path.charCodeAt(0) == 47) // `/`
 						path = path.substring(1);
-					if (path.charCodeAt(path.length - 1) == 47)	// `/`
-						path = path.substring(0, path.length - 1);
+				if (path.charCodeAt(path.length - 1) == 47)	// `/`
+					path = path.substring(0, path.length - 1);
 				return path || "";
 			}
-
 
 			if (trimPath(cola.getCurrentRoutePath()) == trimPath(App.prop("loginPath"))) {
 				return;
@@ -170,7 +181,7 @@
 				return rootApp.goLogin(nextPath, callback);
 			}
 			else {
-				var replace;
+				var replace = true;
 				if (typeof nextPath == "function") {
 					callback = nextPath;
 					nextPath = null;
@@ -182,13 +193,16 @@
 
 				var path = App.prop("loginPath"), realNextPath = nextPath || cola.getCurrentRoutePath();
 
-				if (realNextPath) path += "?" + encodeURIComponent(realNextPath);
-				this.open(path, undefined, callback, replace);
+				if (realNextPath) path += "?/" + encodeURIComponent(realNextPath);
+				this.open(path, {
+					callback: callback,
+					replace: replace
+				});
 			}
 		},
 
 		logout: function(callback) {
-			$.post(App.prop("logoutPath"), function() {
+			$.post(App.prop("service.logout"), function() {
 				App.boardcastMessage({
 					type: "authStateChange",
 					data: { authenticated: false }
@@ -213,7 +227,11 @@
 
 	$(document).ajaxError(function (event, jqXHR) {
 		if (jqXHR.status == 401) {
-			App.goLogin();
+			App.goLogin(function(authenticated) {
+				if (authenticated) {
+					(rootWindow || window).location.reload();
+				}
+			});
 			return false;
 		}
 		else {
@@ -260,10 +278,20 @@
 		});
 	});
 
-	var language = $.cookie("_language") || window.navigator.language;
-	if (language) {
-		document.write("<script src=\"resources/cola-ui/i18n/" + language + "/cola.js\"></script>");
-		document.write("<script src=\"resources/i18n/" + language + "/common.js\"></script>");
+	if (!window._isColaShell) {
+		var language = App.prop("language");
+		if (language != "none") {
+			language = language || window.navigator.language;
+			document.write("<script src=\"resources/cola-ui/i18n/" + language + "/cola.js\"></script>");
+			var i18nResources = App.prop("i18nResources");
+			if (i18nResources) {
+				i18nResources = i18nResources.split(/[;,]/);
+				for (var i = 0, len = i18nResources.length; i < len; i++) {
+					document.write(cola.util.concatUrl("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
+				}
+			}
+
+		}
 	}
 
 	window.boardcastMessage = function (message) {

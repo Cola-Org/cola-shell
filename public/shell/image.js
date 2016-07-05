@@ -91,7 +91,7 @@ function playVideo(type, videoCode) {
 				},
 				content: [
 					{
-						class: "box title-bar",
+						class: "box header-bar",
 						content: [
 							{
 								class: "back-button",

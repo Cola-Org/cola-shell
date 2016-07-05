@@ -8,22 +8,22 @@
 		height: 100%;
 	}
 
-	&.frame {
-		> .v-box > .title-bar {
+	&.frame, &.browser {
+		> .v-box > .header-bar {
 			background: @primaryColor !important;
 			color: #fff !important;
-			height: @title-bar-height;
+			height: @header-bar-height;
 			vertical-align: top;
 			> .back-button {
 				float: left;
 				color: #fff;
 				background: transparent;
 				width: 3em;
-				line-height: @title-bar-height;
+				line-height: @header-bar-height;
 				padding: 0 !important;
 			}
 			> .title {
-				line-height: @title-bar-height;
+				line-height: @header-bar-height;
 				color: #fff;
 				font-size: 110%;
 				text-align: left;
@@ -33,13 +33,13 @@
 			position: absolute;
 			left: 0;
 			right: 0;
-			top: @title-bar-height;
+			top: @header-bar-height;
 			bottom: 0;
 		}
 	}
 
 	&.open {
-		> .v-box > .title-bar {
+		> .v-box > .header-bar {
 			background: transparent !important;
 			> .back-button {
 				position: absolute;
@@ -56,7 +56,7 @@
 	}
 
 	&.free {
-		> .v-box > .title-bar {
+		> .v-box > .header-bar {
 			display: none;
 		}
 		> .v-box >.flex-box {
@@ -65,6 +65,12 @@
 				height: 100%;
 			}
 		}
+	}
+}
+
+.no-header {
+	.header-bar {
+		display: none;
 	}
 }
 

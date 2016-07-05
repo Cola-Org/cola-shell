@@ -31,7 +31,7 @@
 				htmlUrl: config.htmlUrl || function() {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
-					path = cola.util.concatUrl(App.prop("routerPrefix"), path);
+					path = cola.util.concatUrl("card", path);
 					if (config.type == "iFrame") path += location.search + location.hash;
 					return path;
 				},
@@ -43,6 +43,7 @@
 		if (router.data.level == 0) {
 			App.channels.push({
 				name: router.name,
+				path: router.path,
 				title: config.title,
 				icon: config.icon,
 				menuClass: config.menuClass
@@ -58,19 +59,19 @@
 	}
 
 	App.router({
-		path: "/link/:path",
+		path: "/link",
 		type: "iFrame",
 		class: "frame",
-		htmlUrl: function (router) {
-			return decodeURIComponent(router.param.path);
+		htmlUrl: function () {
+			return decodeURIComponent(location.search.substring(1));
 		}
 	});
 	App.router({
-		path: "/browser/:path",
+		path: "/browser",
 		type: "iFrame",
 		class: "browser",
-		htmlUrl: function (router) {
-			return decodeURIComponent(router.param.path);
+		htmlUrl: function () {
+			return decodeURIComponent(location.search.substring(1));
 		}
 	});
 
@@ -79,12 +80,15 @@
 
 	function preprocessHtmlUrl(url, router) {
 		if (typeof url == "function") url = url(router);
-		var i = url.indexOf("?");
-		if (i > 0) {
-			url = url.substring(0, i) + App.prop("htmlSuffix") + url.substring(i);
-		}
-		else {
-			url = url + App.prop("htmlSuffix");
+
+		if (router.name != "link" &&　router.name != "browser") {
+			var i = url.indexOf("?");
+			if (i > 0) {
+				url = url.substring(0, i) + App.prop("htmlSuffix") + url.substring(i);
+			}
+			else {
+				url = url + App.prop("htmlSuffix");
+			}
 		}
 
 		var params = url.match(/{\$*[\w-]+}/g);
@@ -132,10 +136,15 @@
 					mainViewLoaded = true;
 
 					cola.widget("viewMain").load({
-						url: preprocessHtmlUrl(App.prop("mainView")),
+						url: preprocessHtmlUrl(App.prop("mainView"), nextRouter),
 						jsUrl: "$",
 						cssUrl: "$"
 					}, function () {
+						if (!window._splashClosed) {
+							window._splashClosed = true;
+							if (window.plus) plus.navigator.closeSplashscreen();
+						}
+
 						switchChannel(nextRouter, function(subView) {
 							pushLayerInfo(subView, path, data);
 						});
@@ -175,6 +184,7 @@
 	});
 
 	function checkAuthState(router, callback) {
+
 		if (router.data.authRequired) {
 			if (App.prop("sysInfoRetrieved")) {
 				if (!App.prop("authenticated")) {
@@ -202,7 +212,7 @@
 
 	var subViewQueryString = ">.v-box >.flex-box >.ui.sub-view";
 	var iFrameQueryString = ">.v-box >.flex-box >.ui.iframe";
-	var titleQueryString = ">.v-box >.title-bar >.title";
+	var titleQueryString = ">.v-box >.header-bar >.title";
 
 	var currentChannel = null;
 	function switchChannel(router, callback) {
@@ -269,7 +279,7 @@
 					"class": "v-box",
 					content: [
 						{
-							"class": "box title-bar",
+							"class": "box header-bar",
 							content: [
 								{
 									"c-widget": {
@@ -309,8 +319,8 @@
 		}
 
 		var $layer = layer.get$Dom();
-		$layer.css("zIndex", zIndexSeed++).attr("class", "ui layer transition hidden " + (options.class || "frame"));
-		$layer.find(titleQueryString).text(options.title);
+		// $layer.css("zIndex", zIndexSeed++).attr("class", "ui layer transition hidden " + (options.class || "frame"));
+		$layer.find(titleQueryString).text(router.title);
 		layer.set("animation", options.animation || "slide left").show();
 
 		var $subView = layer.get$Dom().find(subViewQueryString);
@@ -329,7 +339,6 @@
 			layer = linkLayerPool.pop();
 			if (!layer) {
 				var layerDom = cola.xRender({
-					tagName: "div",
 					"c-widget": {
 						$type: "layer",
 						hide: function (self) {
@@ -342,7 +351,7 @@
 						"class": "v-box",
 						content: [
 							{
-								"class": "box title-bar",
+								"class": "box header-bar",
 								content: [
 									{
 										"c-widget": {
@@ -353,11 +362,9 @@
 												history.back();
 											}
 										}
-									}, {
-										"class": "title",
-										click: function() {
-											history.back();
-										}
+									},
+									{
+										"class": "title"
 									}
 								]
 							}, {
@@ -381,38 +388,42 @@
 				layer.appendTo(document.body);
 			}
 			else {
-				layer.setTitle("");
+				layer.setTitle(router.title || "");
 			}
 		}
 		else {
 			var layerDom = cola.xRender({
-				tagName: "div",
 				"c-widget": {
 					$type: "layer",
 					beforeHide: function (self) {
 						var webview = layer.webview;
 						delete webview.onloaded;
 						delete webview.onclose;
-						webview.close("slide-out-right", cola.AbstractLayer.ATTRIBUTES.duration.defaultValue);
+						webview.close("slide-out-right", cola.AbstractLayer.attributes.duration.defaultValue);
 						delete layer.webview;
 					}
 				},
 				content: [
 					{
-						class: "title-bar",
+						"class": "v-box",
 						content: [
 							{
-								"c-widget": {
-									$type: "button",
-									class: "back-button",
-									icon: "chevron left",
-									click: function () {
-										history.back();
+								"class": "box header-bar",
+								content: [
+									{
+										"c-widget": {
+											$type: "button",
+											"class": "back-button",
+											icon: "chevron left",
+											click: function() {
+												history.back();
+											}
+										}
+									},
+									{
+										"class": "title"
 									}
-								}
-							},
-							{
-								class: "title"
+								]
 							}
 						]
 					}
@@ -443,14 +454,14 @@
 			};
 		}
 
-		layer.get$Dom().css("zIndex", zIndexSeed++).attr("class", "ui layer transition hidden " + (options.class || "standard"));
+		layer.get$Dom().css("zIndex", zIndexSeed++).attr("class", "ui layer transition hidden " + (options.class || "frame"));
 		layer.set("animation", options.animation || "slide left").show(function () {
 			if (options.class == "browser") {
 				layer.webview.setStyle({
 					top: "38px",
 					bottom: "0px"
 				});
-				layer.webview.show("none");
+				layer.webview.show(/*"none"*/);
 			}
 		});
 
@@ -462,7 +473,7 @@
 					try {
 						var title = iFrame.getContentWindow().document.title;
 						if (title) {
-							document.title = title;
+							document.title = title || router.title;
 							layer.setTitle(title);
 						}
 					}
@@ -502,12 +513,7 @@
 				hideLayer(layerInfo, false);
 			}
 		}
-		if (from == len - 1) {
-			layerStack.pop();
-		}
-		else {
-			layerStack = layerStack.slice(0, from);
-		}
+		layerStack = layerStack.slice(0, from);
 	}
 
 	function hideLayer(layerInfo, animation, callback) {
@@ -570,10 +576,10 @@
 	};
 
 	var layerArgument, layerCallback;
-	window.setRoutePath = function (subWindow, path, argument, callback, replace) {
-		layerArgument = argument;
-		layerCallback = callback;
-		cola.setRoutePath(path, replace);
+	window.setRoutePath = function(subWindow, path, config) {
+		layerArgument = config && config.argument;
+		layerCallback = config && config.callback;
+		cola.setRoutePath(path, config && config.replace);
 	};
 
 	window.layerTitleChange = function(subModel, subWindow, title) {
@@ -590,6 +596,7 @@
 		App.prop("sysInfoRetrieved", true);
 
 		App.prop("availableVersion", sysInfo.availableLatestVersion);
+
 		App.boardcastMessage({
 			type: "authStateChange",
 			data: {
@@ -606,80 +613,98 @@
 			});
 		}
 	});
-})();
 
-cola(function (model) {
-	$(window).on("authStateChange", function (event, data) {
-		App.prop("authenticated", data.authenticated);
-
-		if (data.authenticated) {
-			App.prop("authInfo", data.authInfo);
-
-			if (App.prop("liveMessage")) {
-				$.get(App.prop("service.messageSummary")).done(function (data) {
-					App.boardcastMessage({
-						type: "unreadChatMessageChange",
-						data: {count: data.unreadChatMessages}
-					});
-					App.boardcastMessage({
-						type: "unreadNotificationChange",
-						data: {count: data.unreadNotifications}
-					});
-				});
+	var language = App.prop("language");
+	if (language != "none") {
+		language = language || window.navigator.language;
+		document.write("<script src=\"resources/cola-ui/i18n/" + language + "/cola.js\"></script>");
+		var i18nResources = App.prop("i18nResources");
+		if (i18nResources) {
+			i18nResources = i18nResources.split(/[;,]/);
+			for (var i = 0, len = i18nResources.length; i < len; i++) {
+				document.write(cola.util.concatUrl("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
 			}
 		}
-	});
 
-	var errorCount = 0;
+	}
 
-	function longPolling() {
-		var options = {};
-		if (App.prop("longPollingTimeout")) options.timeout = App.prop("longPollingTimeout");
 
-		$.ajax(App.prop("service.messagePull"), options).done(function (messages) {
-			if (messages) {
-				errorCount = 0;
-				for (var i = 0; i < messages.length; i++) {
-					App.boardcastMessage(messages[i]);
+	cola(function (model) {
+		var hasAuthenticated = false;
+		$(window).on("authStateChange", function (event, data) {
+			App.prop("authenticated", data.authenticated);
+			if (data.authenticated) {
+				hasAuthenticated = true;
+				App.prop("authInfo", data.authInfo);
+
+				if (App.prop("liveMessage")) {
+					$.get(App.prop("service.messageSummary")).done(function (data) {
+						App.boardcastMessage({
+							type: "unreadChatMessageChange",
+							data: {count: data.unreadChatMessages}
+						});
+						App.boardcastMessage({
+							type: "unreadNotificationChange",
+							data: {count: data.unreadNotifications}
+						});
+					});
 				}
 			}
-
-			setTimeout(longPolling, App.prop("longPollingInterval"));
-		}).error(function (xhr, status, ex) {
-			if (status == "timeout") {
-				setTimeout(longPolling, App.prop("longPollingInterval"));
-			}
 			else {
-				errorCount++;
-				setTimeout(longPolling, 5000 * Math.pow(2, Math.min(6, (errorCount - 1))));
+				App.prop("authInfo", null);
+				if (hasAuthenticated) hideLayers(0, false);
 			}
 		});
-	}
 
-	if (App.prop("liveMessage")) setTimeout(longPolling, 1000);
+		var errorCount = 0;
 
-	function plusReady() {
-		var timerId = setInterval(function() {
-			if (window.applicationCacheReady) {
-				clearInterval(timerId);
+		function longPolling() {
+			var options = {};
+			if (App.prop("longPollingTimeout")) options.timeout = App.prop("longPollingTimeout");
+
+			$.ajax(App.prop("service.messagePull"), options).done(function (messages) {
+				if (messages) {
+					errorCount = 0;
+					for (var i = 0; i < messages.length; i++) {
+						App.boardcastMessage(messages[i]);
+					}
+				}
+
+				setTimeout(longPolling, App.prop("longPollingInterval"));
+			}).error(function (xhr, status, ex) {
+				if (status == "timeout") {
+					setTimeout(longPolling, App.prop("longPollingInterval"));
+				}
+				else {
+					errorCount++;
+					setTimeout(longPolling, 5000 * Math.pow(2, Math.min(6, (errorCount - 1))));
+				}
+			});
+		}
+
+		if (App.prop("liveMessage")) setTimeout(longPolling, 1000);
+
+		function plusReady() {
+			if (window._splashClosed) {
+				window._splashClosed = true;
 				plus.navigator.closeSplashscreen();
 			}
-		}, 50);
 
-		plus.key.addEventListener("backbutton", function () {
-			var currentRouter = cola.getCurrentRouter();
-			if (!currentRouter || currentRouter.path == "home") {
-				plus.runtime.quit();
-			}
-			else {
-				history.back();
-			}
-		}, false);
-	}
+			plus.key.addEventListener("backbutton", function () {
+				var currentRouter = cola.getCurrentRouter();
+				if (!currentRouter || currentRouter.path == "home") {
+					plus.runtime.quit();
+				}
+				else {
+					history.back();
+				}
+			}, false);
+		}
 
-	if (window.plus) {
-		plusReady();
-	} else {
-		document.addEventListener("plusready", plusReady, false);
-	}
-});
+		if (window.plus) {
+			plusReady();
+		} else {
+			document.addEventListener("plusready", plusReady, false);
+		}
+	});
+})();

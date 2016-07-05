@@ -2,7 +2,8 @@
 	#cardBookChannel(c-widget="cardBook")
 		.item(c-repeat="channel in channels" c-id="'subView'+capitalize(channel.name)" c-widget="subView")
 .box(c-display="len(channels)>1")
-	#menuChannel(c-widget="menu; class:{{number2Word(len(channels))+' item attached orange labeled icon secondary pointing borderless'}}")
-		a.state(c-repeat="channel in channels" c-href="channel.name" c-widget="icon:{{channel.icon}}; class:{{channel.menuClass}}")
+	#menuChannel(c-widget="menu; class:{{number2Word(len(channels))+' item attached blue labeled icon secondary pointing borderless'}}; showActivity:true")
+		a.state(c-repeat="channel in channels" c-href="channel.path" c-widget="icon:{{channel.icon}}; class:{{channel.menuClass}}")
+
 			span(c-bind="=resource(channel.name,channel.title)")
 			div.ui.circular.label.badge.hidden(c-id="'message'+capitalize(channel.name)" style="display:none; position:absolute; top:-7px; left:65%;")

@@ -1,8 +1,9 @@
 /* 系统默认值 */
 App.prop({
+	language: "zh",
+	appTitle: "Cola-Shell",
 	// REPLACE_START
 	// 开发状态下的默认值，在Build时此段内容将被替换
-	appTitle: "Cola-Shell",
 	liveMessage: false,
 	domainRegExp: /^https*:\/\/shop\.cola-shell\.com\//
 	// REPLACE_END
@@ -12,6 +13,10 @@ App.prop({
 App.channel({
 	path: "/home",
 	icon: "home"
+});
+App.channel({
+	path: "/search",
+	icon: "search"
 });
 
 /* 路由 */

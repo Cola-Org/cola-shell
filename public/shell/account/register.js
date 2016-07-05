@@ -81,7 +81,7 @@ cola(function (model) {
 							if (forward && forward.charAt(0) == "?") {
 								forward = forward.substring(1);
 							}
-							cola.setRoutePath(forward || "/");
+							App.open(forward || "/");
 						}
 						else {
 							cola.alert(result.message);

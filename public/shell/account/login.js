@@ -25,7 +25,7 @@ cola(function (model) {
 						App.boardcastMessage({
 							type: "authStateChange",
 							data: {
-								authenticated: authState.authenticated,
+								authenticated: true,
 								authInfo: authState.authInfo
 							}
 						});
@@ -70,7 +70,7 @@ cola(function (model) {
 			class: "fluid green",
 			caption: cola.resource("register"),
 			click: function () {
-				cola.setRoutePath("/register" + location.search);
+				App.open("/register" + location.search);
 			}
 		}
 	});

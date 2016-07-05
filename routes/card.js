@@ -6,7 +6,7 @@ router.get("/*", function (req, res, next) {
 	if (i > 0) {
 		url = url.substring(0, i);
 	}
-    res.render("frame" + url);
+	res.render("card" + url);
 });
 
 module.exports = router;

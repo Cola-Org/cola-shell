@@ -2,18 +2,19 @@ var express = require("express");
 var router = express.Router();
 
 var $ = require("node-httpclient");
-var target = "http://localhost:4002/service";
+var target = "http://localhost/service";
 
 if (target) {
-    router.all("*", function (req, res, next) {
-		if(req.originalUrl==="/service/sys/info"){
+    router.all("*", function(req, res, next) {
+		if(req.originalUrl === "/service/sys/info"){
             res.send({
-                sysInfoRetrieved:false,
-                availableVersion:"0.0.1",
-                authInfo:{}
-            })
+                sysInfoRetrieved: false,
+                availableVersion: "0.0.1",
+                authInfo: {}
+            });
             return
         }
+
         $.ajax({
             async: false,
             type: req.method,
