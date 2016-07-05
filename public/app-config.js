@@ -14,10 +14,6 @@ App.channel({
 	path: "/home",
 	icon: "home"
 });
-App.channel({
-	path: "/search",
-	icon: "search"
-});
 
 /* 路由 */
 App.router({
