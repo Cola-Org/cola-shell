@@ -1,7 +1,7 @@
 "use strict";
 
 (function() {
-	var zIndexSeed = 100, contextPath = App.prop("contextPath"), lastBrowserUrl;
+	var contextPath = App.prop("contextPath"), lastBrowserUrl;
 
 	var defaultPath, path = location.pathname;
 	if (path && contextPath) {
@@ -76,7 +76,7 @@
 	});
 
 	var layerStack = [], subViewLayerPool = [], linkLayerPool = [];
-	var mainViewLoaded;
+	var mainViewLoaded, backToQuit;
 
 	function preprocessHtmlUrl(url, router) {
 		if (typeof url == "function") url = url(router);
@@ -108,7 +108,7 @@
 
 	cola.on("routerSwitch", function (self, arg) {
 
-		function pushLayerInfo(layer, path, data) {
+		function pushLayerInfo(layer, path, url, data) {
 			if (layerArgument) {
 				if (layerArgument instanceof cola.Entity || layerArgument instanceof cola.EntityList) {
 					layerArgument = layerArgument.toJSON();
@@ -119,6 +119,7 @@
 				type: data.type,
 				level: data.level,
 				path: path,
+				url: url,
 				layer: layer,
 				class: data.class,
 				argument: layerArgument,
@@ -128,7 +129,9 @@
 			layerCallback = undefined;
 		}
 
-		var nextRouter = arg.next, path = arg.path;
+		backToQuit = false;
+
+		var nextRouter = arg.next, path = arg.path, url = location.href;
 		if (nextRouter) {
 			var data = nextRouter.data;
 			if (data.level == 0) {
@@ -146,13 +149,13 @@
 						}
 
 						switchChannel(nextRouter, function(subView) {
-							pushLayerInfo(subView, path, data);
+							pushLayerInfo(subView, path, url, data);
 						});
 					});
 				}
 				else {
 					switchChannel(nextRouter, function(subView) {
-						pushLayerInfo(subView, path, data);
+						pushLayerInfo(subView, path, url, data);
 					});
 				}
 			}
@@ -160,7 +163,7 @@
 				var newLayer = true;
 				for (var i = 0, len = layerStack.length, layerInfo; i < len; i++) {
 					layerInfo = layerStack[i];
-					if (layerInfo.path == path) {
+					if (layerInfo.url == url) {
 						newLayer = false;
 						hideLayers(i + 1);
 						break;
@@ -176,7 +179,7 @@
 						else if (data.type == "iFrame") {
 							layer = showIFrameLayer(nextRouter);
 						}
-						if (layer) pushLayerInfo(layer, path, data);
+						if (layer) pushLayerInfo(layer, path, url, data);
 					});
 				}
 			}
@@ -303,7 +306,16 @@
 								tagName: "div",
 								contextKey: "subView",
 								"c-widget": {
-									$type: "subView"
+									$type: "subView",
+									timeout: App.prop("cardLoadingTimeout"),
+									loadError: function(self, arg) {
+										if (arg.error && arg.error.status == "timeout") {
+											return App.trigger("cardTimeout", {
+												widget: self,
+												error: arg
+											});
+										}
+									}
 								}
 							}
 						}
@@ -319,7 +331,7 @@
 		}
 
 		var $layer = layer.get$Dom();
-		// $layer.css("zIndex", zIndexSeed++).attr("class", "ui layer transition hidden " + (options.class || "frame"));
+		$layer.attr("class", "ui layer transition hidden " + (options.class || "frame"));
 		$layer.find(titleQueryString).text(router.title);
 		layer.set("animation", options.animation || "slide left").show();
 
@@ -454,7 +466,7 @@
 			};
 		}
 
-		layer.get$Dom().css("zIndex", zIndexSeed++).attr("class", "ui layer transition hidden " + (options.class || "frame"));
+		layer.get$Dom().attr("class", "ui layer transition hidden " + (options.class || "frame"));
 		layer.set("animation", options.animation || "slide left").show(function () {
 			if (options.class == "browser") {
 				layer.webview.setStyle({
@@ -625,9 +637,7 @@
 				document.write(cola.util.concatUrl("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
 			}
 		}
-
 	}
-
 
 	cola(function (model) {
 		var hasAuthenticated = false;
@@ -692,8 +702,17 @@
 
 			plus.key.addEventListener("backbutton", function () {
 				var currentRouter = cola.getCurrentRouter();
-				if (!currentRouter || currentRouter.path == "home") {
-					plus.runtime.quit();
+				if (!currentRouter || currentRouter.path == "/home") {
+					if (backToQuit) {
+						plus.runtime.quit();
+					}
+					else {
+						backToQuit = true;
+						cola.NotifyTipManager.show({
+							description: cola.resource("appBackButtonQuitTip", App.prop("appBackButtonQuitTip")),
+							showDuration: 1500
+						});
+					}
 				}
 				else {
 					history.back();

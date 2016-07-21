@@ -577,6 +577,8 @@
 
   uniqueIdSeed = 1;
 
+  uniqueIdSeed = 1;
+
   cola.uniqueId = function() {
     return "_id" + (uniqueIdSeed++);
   };
@@ -2672,10 +2674,6 @@
   cola.AjaxValidator = (function(superClass) {
     extend(AjaxValidator, superClass);
 
-    function AjaxValidator() {
-      return AjaxValidator.__super__.constructor.apply(this, arguments);
-    }
-
     AjaxValidator.attributes = {
       url: null,
       method: null,
@@ -2683,8 +2681,13 @@
       data: null
     };
 
+    function AjaxValidator(config) {
+      AjaxValidator.__super__.constructor.call(this, config);
+      this._ajaxService = new cola.AjaxService();
+    }
+
     AjaxValidator.prototype._validate = function(data, callback) {
-      var ajaxOptions, invoker, options, p, realSendData, sendData, v;
+      var invoker, options, p, realSendData, sendData, v;
       sendData = this._data;
       if ((sendData == null) || sendData === ":data") {
         sendData = data;
@@ -2699,19 +2702,14 @@
         }
         sendData = realSendData;
       }
-      options = {};
-      ajaxOptions = this._ajaxOptions;
-      if (ajaxOptions) {
-        for (p in ajaxOptions) {
-          v = ajaxOptions[p];
-          options[p] = v;
-        }
-      }
-      options.async = !!callback;
-      options.url = this._url;
-      options.data = sendData;
-      options.method = this._method;
-      invoker = new cola.AjaxServiceInvoker(this, options);
+      options = {
+        async: !!callback,
+        url: this._url,
+        data: sendData,
+        method: this._method,
+        ajaxOptions: this._ajaxOptions
+      };
+      invoker = new cola.AjaxServiceInvoker(this._ajaxService, options);
       if (callback) {
         return invoker.invokeAsync(callback);
       } else {
@@ -4443,7 +4441,10 @@
         if (value) {
           if (value instanceof cola.AjaxServiceInvoker) {
             continue;
-          } else if ((value instanceof _Entity || value instanceof _EntityList) && !simpleValue) {
+          } else if (value instanceof _Entity || value instanceof _EntityList) {
+            if (simpleValue) {
+              continue;
+            }
             value = value.toJSON(options);
           }
         }
@@ -6016,7 +6017,6 @@
           this._unwatchPath();
         }
       }
-      SubScope.__super__.destroy.call(this);
     };
 
     return SubScope;
@@ -7372,7 +7372,7 @@
 
     ElementAttrBinding.prototype._refresh = function() {
       var element;
-      value = this.evaluate(this.attr);
+      value = this.evaluate();
       element = this.element;
       element._duringBindingRefresh = true;
       try {
@@ -7710,21 +7710,42 @@
           retValue = result;
         };
       })(this)).fail((function(_this) {
-        return function(xhr) {
-          var error;
-          error = xhr.responseJSON;
-          _this.invokeCallback(false, error);
-          ajaxService.fire("error", ajaxService, {
+        return function(xhr, status, message) {
+          var error, ret;
+          error = {
+            xhr: xhr,
+            status: status,
+            message: message,
+            data: xhr.responseJSON
+          };
+          ret = _this.invokeCallback(false, error);
+          if (ret !== void 0) {
+            retValue = ret;
+          }
+          if (retValue === false) {
+            return retValue;
+          }
+          ret = ajaxService.fire("error", ajaxService, {
             options: options,
             xhr: xhr,
             error: error
           });
-          ajaxService.fire("complete", ajaxService, {
+          if (ret !== void 0) {
+            retValue = ret;
+          }
+          if (retValue === false) {
+            return retValue;
+          }
+          ret = ajaxService.fire("complete", ajaxService, {
             success: false,
             xhr: xhr,
             options: options,
             error: error
           });
+          if (ret !== void 0) {
+            retValue = ret;
+          }
+          return retValue;
         };
       })(this));
       return retValue;
@@ -7759,6 +7780,7 @@
       url: null,
       method: null,
       parameter: null,
+      timeout: null,
       ajaxOptions: null
     };
 
@@ -7795,6 +7817,9 @@
       options.url = this.getUrl(context);
       if (this._method) {
         options.method = this._method;
+      }
+      if (this._timeout) {
+        options.timeout = this._timeout;
       }
       options.data = this._parameter;
       return options;
@@ -8060,7 +8085,10 @@
       text = "";
     }
     if (cola.browser.mozilla) {
-      dom.innerHTML = text.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+      if (typeof text === "string") {
+        text = text.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+      }
+      dom.innerHTML = text;
     } else {
       dom.innerText = text;
     }
@@ -8371,12 +8399,12 @@
             cola.callback(context.callback, true);
           }
         }
-      } else {
+      } else if (!failed) {
         failed = true;
         error = result;
         if (cola.callback(context.callback, false, error) !== false) {
           if (error.xhr) {
-            errorMessage = error.status + " " + error.statusText;
+            errorMessage = error.status + " " + error.message;
           } else {
             errorMessage = error.message;
           }
@@ -8431,7 +8459,7 @@
     }
     context.suspendedInitFuncs = [];
     if (htmlUrl) {
-      _loadHtml(targetDom, htmlUrl, void 0, {
+      _loadHtml(targetDom, htmlUrl, context, {
         complete: function(success, result) {
           return resourceLoadCallback(success, result, htmlUrl);
         }
@@ -8450,7 +8478,7 @@
     if (cssUrls) {
       for (u = 0, len4 = cssUrls.length; u < len4; u++) {
         cssUrl = cssUrls[u];
-        _loadCss(cssUrl, {
+        _loadCss(context, cssUrl, {
           complete: function(success, result) {
             return resourceLoadCallback(success, result, cssUrl);
           }
@@ -8504,17 +8532,18 @@
     return resUrl;
   };
 
-  _loadHtml = function(targetDom, url, data, callback) {
-    $(targetDom).load(url, data, function(response, status, xhr) {
-      if (status === "error") {
-        cola.callback(callback, false, {
-          xhr: xhr,
-          status: xhr.status,
-          statusText: xhr.statusText
-        });
-      } else {
-        cola.callback(callback, true);
-      }
+  _loadHtml = function(targetDom, url, context, callback) {
+    $.ajax(url, {
+      timeout: context.timeout
+    }).done(function(html) {
+      $(targetDom).html(html);
+      cola.callback(callback, true);
+    }).fail(function(xhr, status, message) {
+      cola.callback(callback, false, {
+        xhr: xhr,
+        status: status,
+        message: message
+      });
     });
   };
 
@@ -8529,7 +8558,8 @@
     } else {
       $.ajax(url, {
         dataType: "text",
-        cache: true
+        cache: true,
+        timeout: context.timeout
       }).done(function(script) {
         var e, head, scriptElement;
         scriptElement = $.xCreate({
@@ -8553,11 +8583,11 @@
           e = _error;
           cola.callback(callback, false, e);
         }
-      }).fail(function(xhr) {
+      }).fail(function(xhr, status, message) {
         cola.callback(callback, false, {
           xhr: xhr,
-          status: xhr.status,
-          statusText: xhr.statusText
+          status: status,
+          message: message
         });
       });
     }
@@ -8565,8 +8595,8 @@
 
   _cssCache = {};
 
-  _loadCss = function(url, callback) {
-    var head, linkElement, refNum;
+  _loadCss = function(context, url, callback) {
+    var head, linkElement, refNum, timeoutTimerId;
     linkElement = _cssCache[url];
     if (!linkElement) {
       linkElement = $.xCreate({
@@ -8576,17 +8606,34 @@
         charset: cola.setting("defaultCharset"),
         href: url
       });
+      if (context.timeout) {
+        timeoutTimerId = setTimeout(function() {
+          $fly(linkElement).remove();
+          cola.callback(callback, false, {
+            status: "timeout"
+          });
+        }, context.timeout);
+      }
       if (!(cola.os.android && cola.os.version < 4.4)) {
         $(linkElement).one("load", function() {
+          if (timeoutTimerId) {
+            clearTimeout(timeoutTimerId);
+          }
           cola.callback(callback, true);
         }).on("readystatechange", function(evt) {
           var ref;
           if (((ref = evt.target) != null ? ref.readyState : void 0) === "complete") {
-            cola.callback(callback, true);
+            if (timeoutTimerId) {
+              clearTimeout(timeoutTimerId);
+            }
             $fly(this).off("readystatechange");
+            cola.callback(callback, true);
           }
-        }).one("error", function() {
-          cola.callback(callback, false);
+        }).one("error", function(evt) {
+          if (timeoutTimerId) {
+            clearTimeout(timeoutTimerId);
+          }
+          cola.callback(callback, false, evt);
         });
       }
       head = document.querySelector("head") || document.documentElement;
@@ -8594,6 +8641,9 @@
       head.appendChild(linkElement);
       _cssCache[url] = linkElement;
       if (cola.os.android && cola.os.version < 4.4) {
+        if (timeoutTimerId) {
+          clearTimeout(timeoutTimerId);
+        }
         cola.callback(callback, true);
       }
       return true;
@@ -8634,7 +8684,7 @@
         path = path.substring(0, path.length - 1);
       }
     }
-    return path || "/";
+    return path || "";
   };
 
   ignoreRouterSettingChange = false;
@@ -8763,7 +8813,7 @@
         if (location.pathname !== pathname) {
           realPath = location.pathname + location.search + location.hash;
           if (pathRoot && realPath.indexOf(pathRoot) === 0) {
-            path = "/" + realPath.substring(pathRoot.length);
+            path = realPath.substring(pathRoot.length);
           }
           window.history.replaceState({
             path: realPath,
@@ -8955,22 +9005,21 @@
     i = path.indexOf("#");
     if (i > -1) {
       path = path.substring(i + 1);
-    } else {
-      i = path.indexOf("?");
-      if (i > -1) {
-        path = path.substring(0, i);
-      }
     }
     if (path.charCodeAt(0) === 47) {
       routerContextPath = cola.setting("routerContextPath");
       if (routerContextPath && path.indexOf(routerContextPath) === 0) {
-        path = "/" + path.slice(routerContextPath.length);
+        path = path.slice(routerContextPath.length);
       }
     }
     if (path === currentRoutePath) {
       return;
     }
     currentRoutePath = path;
+    i = path.indexOf("?");
+    if (i > -1) {
+      path = path.substring(0, i);
+    }
     router = _findRouter(path);
     if (router) {
       _switchRouter(router, path);
@@ -8984,7 +9033,7 @@
         var state;
         if (!location.hash) {
           state = window.history.state;
-          _onStateChange((state != null ? state.path : void 0) || "/");
+          _onStateChange((state != null ? state.path : void 0) || (location.pathname + location.search + location.hash));
         }
       });
       $(document.body).delegate("a.state", "click", function() {
@@ -8999,7 +9048,7 @@
         }
       });
       path = _getHashPath();
-      if (path !== "/") {
+      if (path) {
         router = _findRouter(path);
         if (router) {
           _switchRouter(router, path);
@@ -9907,6 +9956,9 @@
     _DomBinding.prototype.unbind = function(path, feature) {
       var holder, i, l, len1, p;
       holder = this[feature.id];
+      if (!holder) {
+        return;
+      }
       for (i = l = 0, len1 = holder.length; l < len1; i = ++l) {
         p = holder[i];
         if (p.path === path) {
@@ -15646,6 +15698,9 @@ Template
       cssUrl: {
         readOnlyAfterCreate: true
       },
+      timeout: {
+        readOnlyAfterCreate: true
+      },
       parentModel: null,
       modelName: null,
       model: {
@@ -15714,6 +15769,9 @@ Template
         if (options.cssUrl) {
           this._cssUrl = options.cssUrl;
         }
+        if (options.timeout) {
+          this._timeout = options.timeout;
+        }
         if (options.param) {
           this._param = options.param;
         }
@@ -15752,10 +15810,12 @@ Template
         htmlUrl: this._url,
         jsUrl: this._jsUrl,
         cssUrl: this._cssUrl,
+        timeout: this._timeout,
         param: this._param,
         callback: {
           complete: (function(_this) {
             return function(success, result) {
+              var ret, retValue;
               _this._currentUrl = _this._url;
               _this._currentJsUrl = _this._jsUrl;
               _this._currentCssUrl = _this._cssUrl;
@@ -15765,13 +15825,17 @@ Template
               $dom.find(">.ui.dimmer").removeClass("active");
               _this._loading = false;
               if (success) {
-                _this.fire("load", _this);
+                retValue = _this.fire("load", _this);
               } else {
-                _this.fire("loadError", _this, {
+                retValue = _this.fire("loadError", _this, {
                   error: result
                 });
               }
-              cola.callback(callback, success, result);
+              ret = cola.callback(callback, success, result);
+              if (ret !== void 0) {
+                retValue = ret;
+              }
+              return retValue;
             };
           })(this)
         }
@@ -16330,6 +16394,7 @@ Template
         INFO: "info",
         QUESTION: "question"
       },
+      box: [],
       _getAnimation: function() {
         if (messageBox.dialogMode) {
           return "scale";
@@ -16338,22 +16403,66 @@ Template
         }
       },
       _executeCallback: function(name) {
-        var _eventName;
-        _eventName = "_on" + name;
-        if (!messageBox[_eventName]) {
+        var config, fun, ref;
+        fun = (ref = messageBox.currentOptions) != null ? ref["on" + name] : void 0;
+        if (!fun) {
           return;
         }
-        setTimeout(function() {
-          var config;
-          config = messageBox[_eventName];
-          if (typeof config === "function") {
-            config.apply(null, []);
-          }
-          return messageBox[_eventName] = null;
-        }, 0);
+        config = fun;
+        if (typeof config === "function") {
+          config.apply(null, []);
+        }
       },
-      _doShow: function() {
-        var $dom, animation, css, height, pHeight, pWidth, width;
+      _doApprove: function() {
+        messageBox._executeCallback("Approve");
+        messageBox._doHide();
+      },
+      _doDeny: function() {
+        messageBox._executeCallback("Deny");
+        messageBox._doHide();
+      },
+      _doHide: function() {
+        var box, dom;
+        $(messageBox._dom).transition(messageBox._settings.animation);
+        cola.commonDimmer.hide();
+        messageBox._executeCallback("Hide");
+        box = messageBox.box;
+        box.pop();
+        messageBox.currentOptions = null;
+        if (box.length) {
+          dom = messageBox.getDom();
+          $(dom).transition("stop all");
+          return messageBox.show(box[box.length - 1], true);
+        }
+      },
+      getDom: function() {
+        if (!messageBox._dom) {
+          createMessageBoxDom();
+        }
+        return messageBox._dom;
+      },
+      _doShow: function(options) {
+        var $dom, animation, className, css, dom, doms, height, isAlert, oldClassName, pHeight, pWidth, width;
+        messageBox.currentOptions = options;
+        dom = messageBox.getDom();
+        $dom = $(dom);
+        options = messageBox.currentOptions;
+        $dom.removeClass("warning error info question").addClass(options.level);
+        oldClassName = $dom.attr("_class");
+        className = options["class"] || messageBox["class"];
+        if (oldClassName !== className) {
+          if (oldClassName) {
+            $dom.removeClass(oldClassName);
+          }
+          $dom.addClass(className).attr("_class", className);
+        }
+        doms = messageBox._doms;
+        isAlert = options.mode === "alert";
+        $(doms.actions).toggleClass("hidden", isAlert);
+        $(doms.close).toggleClass("hidden", !isAlert);
+        $(doms.description).html(options.content);
+        $(doms.title).text(options.title);
+        doms.icon.className = options.icon;
         animation = messageBox._getAnimation();
         css = {
           zIndex: cola.floatWidget.zIndex()
@@ -16371,58 +16480,23 @@ Template
         $dom.transition(animation);
         return cola.commonDimmer.show();
       },
-      _doApprove: function() {
-        messageBox._executeCallback("Approve");
-        messageBox._doHide();
-      },
-      _doDeny: function() {
-        messageBox._executeCallback("Deny");
-        messageBox._doHide();
-      },
-      _doHide: function() {
-        $(messageBox._dom).transition(messageBox._settings.animation);
-        cola.commonDimmer.hide();
-        messageBox._executeCallback("Hide");
-      },
-      getDom: function() {
-        if (!messageBox._dom) {
-          createMessageBoxDom();
-        }
-        return messageBox._dom;
-      },
-      show: function(options) {
-        debugger;
-        var $dom, className, dom, doms, isAlert, level, oldClassName, settings;
-        dom = messageBox.getDom();
+      show: function(options, auto) {
+        var level, settings;
         settings = messageBox.settings;
         level = options.level || messageBox.level.INFO;
-        $dom = $(dom);
         if (options.title == null) {
           options.title = cola.resource(settings[level].i18n);
         }
         if (options.icon == null) {
           options.icon = settings[level].icon;
         }
-        messageBox._onDeny = options.onDeny;
-        messageBox._onApprove = options.onApprove;
-        messageBox._onHide = options.onHide;
-        $dom.removeClass("warning error info question").addClass(level);
-        oldClassName = $dom.attr("_class");
-        className = options["class"] || messageBox["class"];
-        if (oldClassName !== className) {
-          if (oldClassName) {
-            $dom.removeClass(oldClassName);
-          }
-          $dom.addClass(className).attr("_class", className);
+        options.level = level;
+        if (!auto) {
+          messageBox.box.unshift(options);
         }
-        doms = messageBox._doms;
-        isAlert = options.mode === "alert";
-        $(doms.actions).toggleClass("hidden", isAlert);
-        $(doms.close).toggleClass("hidden", !isAlert);
-        $(doms.description).html(options.content);
-        $(doms.title).text(options.title);
-        doms.icon.className = options.icon;
-        messageBox._doShow();
+        if (!messageBox.currentOptions) {
+          messageBox._doShow(options);
+        }
         return this;
       }
     };
@@ -16577,7 +16651,7 @@ Template
       settings.content = msg;
       settings.level = messageBox.level.QUESTION;
       if (settings.title == null) {
-        settings.title = messageBox.settings.question.title;
+        settings.title = cola.resource(messageBox.settings.question.i18n);
       }
       if (settings.icon == null) {
         settings.icon = messageBox.settings.question.icon;
@@ -16969,11 +17043,7 @@ Template
       beforeHide: null
     };
 
-    AbstractLayer.prototype._onShow = function() {
-      return this.get$Dom().css({
-        zIndex: cola.floatWidget.zIndex()
-      });
-    };
+    AbstractLayer.prototype._onShow = function() {};
 
     AbstractLayer.prototype._onHide = function() {};
 
@@ -17003,6 +17073,9 @@ Template
         options = {};
       }
       options.target = "show";
+      this.get$Dom().css({
+        zIndex: cola.floatWidget.zIndex()
+      });
       this._transition(options, callback);
       return this;
     };
@@ -19038,11 +19111,19 @@ Template
     };
 
     AbstractEditor.prototype._processDataMessage = function(path, type, arg) {
-      var $formDom, form, keyMessage, value;
-      if (type === cola.constants.MESSAGE_VALIDATION_STATE_CHANGE || type === cola.constants.MESSAGE_PROPERTY_CHANGE) {
-        keyMessage = arg.entity.getKeyMessage(arg.property);
-        this.set("state", keyMessage != null ? keyMessage.type : void 0);
-        if (this._formDom === void 0) {
+      var $formDom, entity, form, keyMessage, ref, value;
+      if (type === cola.constants.MESSAGE_VALIDATION_STATE_CHANGE || (cola.constants.MESSAGE_REFRESH <= type && type <= cola.constants.MESSAGE_CURRENT_CHANGE)) {
+        if ((ref = this._bindInfo) != null ? ref.isWriteable : void 0) {
+          entity = this._scope.get(this._bindInfo.entityPath);
+          if (entity instanceof cola.EntityList) {
+            entity = entity.current;
+          }
+          if (entity instanceof cola.Entity) {
+            keyMessage = entity.getKeyMessage(this._bindInfo.property);
+            this.set("state", keyMessage != null ? keyMessage.type : void 0);
+          }
+        }
+        if (!this._formDom) {
           if (this._fieldDom) {
             $formDom = $fly(this._fieldDom).closest(".ui.form");
           }
@@ -19051,10 +19132,11 @@ Template
         if (this._formDom) {
           form = cola.widget(this._formDom);
           if (form && form instanceof cola.Form) {
-            return form.setFieldMessages(this, keyMessage);
+            form.setFieldMessages(this, keyMessage);
           }
         }
-      } else {
+      }
+      if (type !== cola.constants.MESSAGE_VALIDATION_STATE_CHANGE) {
         value = this.readBindingValue();
         if ((value != null) && this._dataType) {
           value = this._dataType.parse(value);
@@ -20888,6 +20970,11 @@ Template
     AbstractDropdown.CLASS_NAME = "input drop";
 
     AbstractDropdown.attributes = {
+      disabled: {
+        type: "boolean",
+        refreshDom: true,
+        defaultValue: false
+      },
       items: {
         expressionType: "repeat",
         setter: function(items) {
@@ -20941,6 +21028,9 @@ Template
           if (_this._opened) {
             _this.close();
           } else {
+            if (_this._disabled) {
+              return;
+            }
             _this.open();
           }
         };
@@ -20978,12 +21068,17 @@ Template
     };
 
     AbstractDropdown.prototype._createEditorDom = function() {
+      var dropdown;
+      dropdown = this;
       return $.xCreate({
         tagName: "input",
         type: "text",
         click: (function(_this) {
           return function(evt) {
             var input;
+            if (dropdown._disabled) {
+              return;
+            }
             if (_this._openOnActive) {
               if (_this._opened) {
                 input = evt.target;
@@ -21341,11 +21436,11 @@ Template
       clientWidth = document.body.offsetWidth;
       clientHeight = document.body.clientHeight;
       scrollTop = document.body.scrollTop;
-      bottomSpace = clientHeight - rect.top - dropdownDom.clientHeight - scrollTop;
+      bottomSpace = Math.abs(clientHeight - rect.top - dropdownDom.clientHeight - scrollTop);
       if (bottomSpace >= boxHeight) {
         direction = "down";
       } else {
-        topSpace = rect.top;
+        topSpace = rect.top - scrollTop;
         if (topSpace > bottomSpace) {
           direction = "up";
           if (boxHeight > topSpace) {
@@ -24768,33 +24863,19 @@ Template
     };
 
     Carousel.prototype.next = function() {
-      var items, pos;
+      var items;
       items = this._getDataItems().items;
       if (items && this._scroller) {
-        pos = this._scroller.getPos();
-        if (pos === (items.length - 1)) {
-          this.goTo(0);
-        } else {
-          this._scroller.next();
-        }
+        this._scroller.next();
       }
       return this;
     };
 
     Carousel.prototype.previous = function() {
-      var items, pos;
+      var items;
       items = this._getDataItems().items;
       if (items && this._scroller) {
-        pos = this._scroller.getPos();
-        if (pos === 0) {
-          if (items instanceof cola.EntityList) {
-            this.goTo(items.entityCount - 1);
-          } else {
-            this.goTo(items.length - 1);
-          }
-        } else {
-          this._scroller.prev();
-        }
+        this._scroller.prev();
       }
       return this;
     };
@@ -30894,7 +30975,7 @@ Template
     };
 
     Table.prototype._sysHeaderClick = function(column) {
-      var collection, criteria, invoker, parameter, processed, property, sortDirection;
+      var collection, criteria, invoker, parameter, processed, property, provider, sortDirection;
       if (column instanceof cola.TableDataColumn && column.get("sortable")) {
         sortDirection = column.get("sortDirection");
         if (sortDirection === "asc") {
@@ -30940,6 +31021,14 @@ Template
               parameter = invoker.invokerOptions.data;
               if (!parameter) {
                 invoker.invokerOptions.data = parameter = {};
+              } else if (typeof parameter !== "object" || parameter instanceof Date) {
+                throw new cola.Exception("Can not set sort parameter automatically.");
+              }
+              parameter.sort = criteria;
+              provider = invoker.ajaxService;
+              parameter = provider.get("parameter");
+              if (!parameter) {
+                provider.set("parameter", parameter = {});
               } else if (typeof parameter !== "object" || parameter instanceof Date) {
                 throw new cola.Exception("Can not set sort parameter automatically.");
               }

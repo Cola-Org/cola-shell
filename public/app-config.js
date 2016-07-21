@@ -5,7 +5,7 @@ App.prop({
 	// REPLACE_START
 	// 开发状态下的默认值，在Build时此段内容将被替换
 	liveMessage: false,
-	domainRegExp: /^https*:\/\/shop\.cola-shell\.com\//
+	domainRegExp: /^https*:\/\/www\.cola-shell\.com\//
 	// REPLACE_END
 });
 

@@ -28,6 +28,7 @@
 			defaultRouterPath: "/home",
 			mainView: "shell/main-channel-bottom",
 			loginPath: "/login",
+			cardLoadingTimeout: 1000 * 10,
 			longPollingTimeout: 0,
 			longPollingInterval: 2000,
 			safeEffect: false && cola.os.android && !cola.browser.chrome,
@@ -42,6 +43,7 @@
 
 	var App = window.App = {
 		channels: [],
+		eventHandlers: {},
 
 		prop: function (key, value) {
 			if (rootApp) {
@@ -62,6 +64,40 @@
 					properties[key] = value;
 				}
 			}
+		},
+
+		on: function(event, listener) {
+			var listeners = this.eventHandlers[event];
+			if (!listeners) {
+				this.eventHandlers[event] = listeners = [];
+			}
+			listeners.push(listener);
+		},
+
+		off: function(event, listener) {
+			var listeners = this.eventHandlers[event];
+			if (listeners) {
+				if (listener) {
+					var i = listeners.indexOf(listener);
+					if (i > -1) listeners.splice(i, 1);
+				}
+				else {
+					delete this.eventHandlers[event];
+				}
+			}
+		},
+
+		trigger: function(event, param) {
+			var retValue, listeners = this.eventHandlers[event];
+			if (listeners) {
+				for (var i = 0, listener; i < listeners.length; i++) {
+					listener = listeners[i];
+					var ret = listener(param);
+					if (ret != undefined) retValue = ret;
+					if (retValue === false) break;
+				}
+			}
+			return retValue;
 		},
 
 		getRootWindow: function () {
@@ -193,7 +229,7 @@
 
 				var path = App.prop("loginPath"), realNextPath = nextPath || cola.getCurrentRoutePath();
 
-				if (realNextPath) path += "?/" + encodeURIComponent(realNextPath);
+				if (realNextPath) path += "?" + encodeURIComponent(realNextPath);
 				this.open(path, {
 					callback: callback,
 					replace: replace
