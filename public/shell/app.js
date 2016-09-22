@@ -290,7 +290,7 @@
 			if (serviceUrlReplacePattern) {
 				url = url.replace(serviceUrlReplacePattern, "");
 			}
-			options.url = cola.util.concatUrl(serviceUrlPrefix, url);
+			options.url = cola.util.path(serviceUrlPrefix, url);
 			if (serviceUrlPrefix != "/") options.crossDomain = true;
 		}
 		//options.contentType = "text/plain";
@@ -323,7 +323,7 @@
 			if (i18nResources) {
 				i18nResources = i18nResources.split(/[;,]/);
 				for (var i = 0, len = i18nResources.length; i < len; i++) {
-					document.write(cola.util.concatUrl("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
+					document.write(cola.util.path("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
 				}
 			}
 

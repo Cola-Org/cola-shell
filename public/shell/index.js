@@ -31,7 +31,7 @@
 				htmlUrl: config.htmlUrl || function() {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
-					path = cola.util.concatUrl("card", path);
+					path = cola.util.path("card", path);
 					if (config.type == "iFrame") path += location.search + location.hash;
 					return path;
 				},
@@ -634,7 +634,7 @@
 		if (i18nResources) {
 			i18nResources = i18nResources.split(/[;,]/);
 			for (var i = 0, len = i18nResources.length; i < len; i++) {
-				document.write(cola.util.concatUrl("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
+				document.write(cola.util.path("<script src=\"resources/i18n", language, i18nResources[i], "></script>"));
 			}
 		}
 	}
