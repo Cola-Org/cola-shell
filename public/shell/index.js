@@ -1,6 +1,6 @@
 "use strict";
 
-(function() {
+(function () {
 	var contextPath = App.prop("contextPath"), lastBrowserUrl;
 
 	var defaultPath, path = location.pathname;
@@ -18,7 +18,7 @@
 	cola.setting("routerContextPath", contextPath);
 
 	var appTitle = cola.resource("appTitle", App.prop("appTitle"));
-	App.router = function(config) {
+	App.router = function (config) {
 		var router = cola.route(config.path, {
 			title: config.title || appTitle,
 			name: config.name,
@@ -28,7 +28,7 @@
 				class: config.class,
 				animation: config.animation,
 				authRequired: (config.authRequired == undefined) ? App.prop("defaultAuthRequired") : config.authRequired,
-				htmlUrl: config.htmlUrl || function() {
+				htmlUrl: config.htmlUrl || function () {
 					var path = location.pathname;
 					if (contextPath) path = path.substring(contextPath.length);
 					path = cola.util.path("card", path);
@@ -52,7 +52,7 @@
 	};
 
 	if (App._prependingRouters) {
-		for(var i = 0, len = App._prependingRouters.length; i < len; i++) {
+		for (var i = 0, len = App._prependingRouters.length; i < len; i++) {
 			App.router(App._prependingRouters[i]);
 		}
 		delete App._prependingRouters;
@@ -81,7 +81,7 @@
 	function preprocessHtmlUrl(url, router) {
 		if (typeof url == "function") url = url(router);
 
-		if (router.name != "link" &&　router.name != "browser") {
+		if (router.name != "link" && router.name != "browser") {
 			var i = url.indexOf("?");
 			if (i > 0) {
 				url = url.substring(0, i) + App.prop("htmlSuffix") + url.substring(i);
@@ -148,13 +148,13 @@
 							if (window.plus) plus.navigator.closeSplashscreen();
 						}
 
-						switchChannel(nextRouter, function(subView) {
+						switchChannel(nextRouter, function (subView) {
 							pushLayerInfo(subView, path, url, data);
 						});
 					});
 				}
 				else {
-					switchChannel(nextRouter, function(subView) {
+					switchChannel(nextRouter, function (subView) {
 						pushLayerInfo(subView, path, url, data);
 					});
 				}
@@ -218,6 +218,7 @@
 	var titleQueryString = ">.v-box >.header-bar >.title";
 
 	var currentChannel = null;
+
 	function switchChannel(router, callback) {
 		hideLayers(0);
 
@@ -228,7 +229,7 @@
 		if (oldChannel == newChannel) return;
 
 		var cardBook = cola.widget("cardBookChannel");
-		cardBook.get$Dom().find(">div").each(function(i, card) {
+		cardBook.get$Dom().find(">div").each(function (i, card) {
 			if (card.id == "subView" + cola.util.capitalize(router.name)) {
 				index = i;
 				return false;
@@ -289,13 +290,13 @@
 										$type: "button",
 										"class": "back-button",
 										icon: "chevron left",
-										click: function() {
+										click: function () {
 											return history.back();
 										}
 									}
 								}, {
 									"class": "title",
-									click: function() {
+									click: function () {
 										return history.back();
 									}
 								}
@@ -308,7 +309,7 @@
 								"c-widget": {
 									$type: "subView",
 									timeout: App.prop("cardLoadingTimeout"),
-									loadError: function(self, arg) {
+									loadError: function (self, arg) {
 										if (arg.error && arg.error.status == "timeout") {
 											return App.trigger("cardTimeout", {
 												widget: self,
@@ -370,7 +371,7 @@
 											$type: "button",
 											"class": "back-button",
 											icon: "chevron left",
-											click: function() {
+											click: function () {
 												history.back();
 											}
 										}
@@ -427,7 +428,7 @@
 											$type: "button",
 											"class": "back-button",
 											icon: "chevron left",
-											click: function() {
+											click: function () {
 												history.back();
 											}
 										}
@@ -449,17 +450,17 @@
 			layer.appendTo(document.body);
 
 			var webview = layer.webview = plus.webview.create();
-			webview.onloaded = function() {
+			webview.onloaded = function () {
 				var url = layer.webview.getURL();
 				if (url && !(url.match(/^file\:\/\/.*\/error\.\html/))) {
 					lastBrowserUrl = url;
 					layer.setTitle(url);
 				}
 			};
-			webview.onclose = function() {
+			webview.onclose = function () {
 				history.back();
 			};
-			webview.onerror = function(error) {
+			webview.onerror = function (error) {
 				var errorPage = "file://" + plus.io.convertLocalFileSystemURL("/error.html");
 				webview.loadURL(errorPage + "?" + encodeURIComponent(lastBrowserUrl));
 				return false;
@@ -588,13 +589,13 @@
 	};
 
 	var layerArgument, layerCallback;
-	window.setRoutePath = function(subWindow, path, config) {
+	window.setRoutePath = function (subWindow, path, config) {
 		layerArgument = config && config.argument;
 		layerCallback = config && config.callback;
 		cola.setRoutePath(path, config && config.replace);
 	};
 
-	window.layerTitleChange = function(subModel, subWindow, title) {
+	window.layerTitleChange = function (subModel, subWindow, title) {
 		var layerInfo = getLayerInfo(subModel, subWindow);
 		if (layerInfo) {
 			layerInfo.layer.setTitle(title);
@@ -698,6 +699,10 @@
 			if (window._splashClosed) {
 				window._splashClosed = true;
 				plus.navigator.closeSplashscreen();
+			}
+
+			if (cola.os.ios) {
+				return
 			}
 
 			plus.key.addEventListener("backbutton", function () {

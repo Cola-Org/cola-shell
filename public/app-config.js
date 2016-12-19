@@ -2,10 +2,11 @@
 App.prop({
 	language: "zh",
 	appTitle: "Cola-Shell",
+	//defaultAuthRequired:true
 	// REPLACE_START
 	// 开发状态下的默认值，在Build时此段内容将被替换
 	liveMessage: false,
-	domainRegExp: /^https*:\/\/www\.cola-shell\.com\//
+	domainRegExp: /^https*:\/\/www\.cola-shell\.com\//,
 	// REPLACE_END
 });
 
@@ -20,6 +21,7 @@ App.router({
 	path: "/login",
 	class: "open",
 	animation: "slide down",
+	authRequired: false,
 	htmlUrl: "shell/account/login"
 });
 App.router({
@@ -44,6 +46,7 @@ App.router({
 App.router({
 	path: "/register",
 	class: "open",
+	authRequired: false,
 	htmlUrl: "shell/account/register"
 });
 App.router({
